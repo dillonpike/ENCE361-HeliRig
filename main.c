@@ -1,3 +1,7 @@
+// Macro function definitions
+#define MS_TO_CYCLES(ms, clockRate) clockRate / 1000 * ms
+#define BUFFER_AVERAGE(sum) (2 * sum + BUF_SIZE) / 2 / BUF_SIZE
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -12,8 +16,6 @@
 #include "driverlib/systick.h"
 #include "driverlib/interrupt.h"
 
-
-#define MS_TO_CYCLES(ms, clockRate) clockRate / 1000 * ms
 #define RED_LED   GPIO_PIN_1
 #define BLUE_LED  GPIO_PIN_2
 #define GREEN_LED GPIO_PIN_3
@@ -42,10 +44,11 @@ int main(void)
         cumSum = 0;
         for (bufIndex = 0; bufIndex < BUF_SIZE; bufIndex++)
             cumSum += readCircBuf(&circBufADC);
-        val = (2 * cumSum + BUF_SIZE) / 2 / BUF_SIZE;
+        val = BUFFER_AVERAGE(cumSum);
         SysCtlDelay(MS_TO_CYCLES(500, clockRate));
     }
 }
+
 void initADC(void)
 {
     // Enable ADC0
