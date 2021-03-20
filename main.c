@@ -1,80 +1,84 @@
-// ************************************************************
-// week2_blink
-// Sample code for Week 2 ENCE361 Lab
-// Author:  Phil Bones
-// Last edited:   3.2.2018
-// Based on Texas example code, and additions by Steve Weddell
-//
-// Purpose: This program will cause the LED connected to Pin 3
-// of Port F to blink.
-// ************************************************************
-//
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "circBufT.h"
 // TivaWare Library Includes:
-#include "inc/hw_memmap.h"        // defines GPIO_PORTF_BASE
-#include "inc/tm4c123gh6pm.h"     // defines interrupt vectors
-                                  //   and register addresses
-#include "driverlib/gpio.h"       // defines for GPIO peripheral
-#include "driverlib/sysctl.h"     // system control functions
+#include "inc/hw_memmap.h"
+#include "inc/tm4c123gh6pm.h"
+#include "driverlib/adc.h"
+#include "driverlib/gpio.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/systick.h"
+#include "driverlib/interrupt.h"
 
+
+#define MS_TO_CYCLES(ms, clockRate) clockRate / 1000 * ms
 #define RED_LED   GPIO_PIN_1
 #define BLUE_LED  GPIO_PIN_2
 #define GREEN_LED GPIO_PIN_3
+#define BUF_SIZE 10
+#define SAMPLE_RATE_HZ 10
 
+void initADC(void);
+void initClock (void);
+void ADCIntHandler(void);
+void SysTickIntHandler(void);
 
-int main(void) {
-    uint32_t clock_rate;
-    // Set up the system clock (refer to pp.220 of the TM4C123 datasheet for an overview).
-    // Many options exist here but basically the 16MHz crystal oscillator signal is
-    // boosted to 400Mz via a phase-locked loop (PLL), divided by 2 and then again by 10
-    // (via the SYSCTL_SYSDIV_10 setting) to make the system clock rate 20 MHz.
-    SysCtlClockSet(SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_SYSDIV_10);
+static circBuf_t circBufADC;
+static uint32_t clockRate;
 
-    SysCtlDelay(100);  // Allow time for the oscillator to settle down.
-    // SysCtlDelay() is an API function which executes a 3-instruction loop the number of
-    //   times specified by the argument).
+int main(void)
+{
+    uint32_t cumSum;
+    uint16_t bufIndex;
+    uint16_t val;
+    initClock();
+    initADC();
+    initCircBuf(&circBufADC, BUF_SIZE);
+    IntMasterEnable();
 
-    clock_rate = SysCtlClockGet();  // Get the clock rate in pulses/s.
-
-    // Enable GPIO Port F
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-
-    // Set up the specific port pin as medium strength current & pull-down config.
-    // Refer to TivaWare peripheral lib user manual for set up for configuration options
-    GPIOPadConfigSet(GPIO_PORTF_BASE, GREEN_LED, GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPD);
-
-    // Set data direction register as output
-    GPIODirModeSet(GPIO_PORTF_BASE, GREEN_LED, GPIO_DIR_MODE_OUT);
-
-    // Write a zero to the output pin 3 on port F
-    GPIOPinWrite(GPIO_PORTF_BASE, GREEN_LED, 0x00);
-
-    // Enter a gadfly loop (kernel) to make the LED blink
-    while (1)
-    {
-        //
-        // Delay (passing the argument value clock_rate / 3 gives a delay of 1 sec)
-        //
-        SysCtlDelay(clock_rate / 12);
-
-        //
-        // Turn on the LED
-        //
-        GPIOPinWrite(GPIO_PORTF_BASE,  GREEN_LED, GREEN_LED);
-
-        //
-        // Delay
-        //
-        SysCtlDelay(clock_rate / 12);
-
-        //
-        // Turn off the LED
-        //
-        GPIOPinWrite(GPIO_PORTF_BASE,  GREEN_LED, 0x00);
-
+    while (1) {
+        cumSum = 0;
+        for (bufIndex = 0; bufIndex < BUF_SIZE; bufIndex++)
+            cumSum += readCircBuf(&circBufADC);
+        val = (2 * cumSum + BUF_SIZE) / 2 / BUF_SIZE;
+        SysCtlDelay(MS_TO_CYCLES(500, clockRate));
     }
+}
+void initADC(void)
+{
+    // Enable ADC0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
+    // Configure sequence
+    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
+    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0); // CHANGE TO CH9 ONCE TESTING DONE
+    ADCSequenceEnable(ADC0_BASE, 0);
+    ADCIntRegister (ADC0_BASE, 0, ADCIntHandler);
+    ADCIntEnable(ADC0_BASE, 0);
+}
+
+void initClock (void)
+{
+    // Set the clock rate to 20 MHz
+    SysCtlClockSet (SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+    clockRate = SysCtlClockGet();
+    SysTickPeriodSet(clockRate / SAMPLE_RATE_HZ);
+    SysTickIntRegister(SysTickIntHandler);
+    SysTickIntEnable();
+    SysTickEnable();
+}
+
+void ADCIntHandler(void)
+{
+    uint32_t valADC;
+    ADCSequenceDataGet(ADC0_BASE, 0, &valADC);
+    writeCircBuf(&circBufADC, valADC);
+    ADCIntClear(ADC0_BASE, 0);
+}
+
+void SysTickIntHandler(void)
+{
+    ADCProcessorTrigger(ADC0_BASE, 0);
 }
