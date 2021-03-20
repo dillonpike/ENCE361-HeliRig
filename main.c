@@ -20,7 +20,7 @@
 #define BLUE_LED  GPIO_PIN_2
 #define GREEN_LED GPIO_PIN_3
 #define BUF_SIZE 10
-#define SAMPLE_RATE_HZ 10
+#define SAMPLE_RATE_HZ 500
 
 void initADC(void);
 void initClock (void);
