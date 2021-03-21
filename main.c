@@ -3,7 +3,7 @@
 #define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
-#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, x), 100)) // Constrains x to a valid percentage range
+#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range
 
 #include <stdio.h>
 #include <stdint.h>
@@ -19,12 +19,13 @@
 #include "driverlib/interrupt.h"
 #include "OrbitOLED/OrbitOLEDInterface.h"
 #include "utils/ustdlib.h"
+#include "buttons4.h"
 
 #define RED_LED GPIO_PIN_1
 #define BLUE_LED GPIO_PIN_2
 #define GREEN_LED GPIO_PIN_3
 #define BUF_SIZE 10
-#define SAMPLE_RATE_HZ 500
+#define SYSTICK_RATE_HZ 500
 #define ADC_MAX_V 3.3
 #define ALT_MAX_REDUCTION_V 0.8 // Voltage the altitude sensor reduces by at 100 % altitude
 #define ADC_MAX 4095
@@ -51,6 +52,7 @@ int main(void)
     uint8_t altitudePercentage;
     initClock();
     initADC();
+    initButtons();
     initCircBuf(&circBufADC, BUF_SIZE);
     OLEDInitialise();
     IntMasterEnable();
@@ -63,7 +65,7 @@ int main(void)
         averageADC = bufferMean(&circBufADC);
         altitudePercentage = altitudeCalc(averageADC);
         // Constrain altitudePercentage to a valid range
-        usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d", altitudePercentage);
+        usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d%%", altitudePercentage);
         OLEDStringDraw(dispStr, 0, 0);
         SysCtlDelay(MS_TO_CYCLES(500, clockRate));
     }
@@ -91,7 +93,7 @@ void initClock (void)
     // Set the clock rate to 20 MHz
     SysCtlClockSet (SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
     clockRate = SysCtlClockGet();
-    SysTickPeriodSet(clockRate / SAMPLE_RATE_HZ);
+    SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
     SysTickIntRegister(SysTickIntHandler);
     SysTickIntEnable();
     SysTickEnable();
@@ -114,6 +116,9 @@ void ADCIntHandler(void)
 void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
+    updateButtons();
+    if(initialAltRead && (checkButton(LEFT) == PUSHED))
+        initialAlt = bufferMean(&circBufADC);
 }
 
 uint32_t bufferMean(circBuf_t* circBuf)
