@@ -3,6 +3,7 @@
 #define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
+#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, x), 100)) // Constrains x to a valid percentage range
 
 #include <stdio.h>
 #include <stdint.h>
@@ -62,8 +63,6 @@ int main(void)
         averageADC = bufferMean(&circBufADC);
         altitudePercentage = altitudeCalc(averageADC);
         // Constrain altitudePercentage to a valid range
-        //altitudePercentage = altitudePercentage < 0 ? MIN(altitudePercentage, 0) : MAX(altitudePercentage, 100);
-        OLEDStringDraw("Hello", 0, 0);
         usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d", altitudePercentage);
         OLEDStringDraw(dispStr, 0, 0);
         SysCtlDelay(MS_TO_CYCLES(500, clockRate));
@@ -131,6 +130,5 @@ uint32_t bufferMean(circBuf_t* circBuf)
 uint8_t altitudeCalc(uint32_t rawADC)
 {
     int16_t alt = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
-    return alt < 0 ? 0 : MIN(alt, 100);
-
+    return CONSTRAIN_PERCENT(alt); // Constrain between 0 and 100
 }
