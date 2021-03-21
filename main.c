@@ -32,6 +32,11 @@
 #define MAX_ALT (ADC_MAX / ADC_MAX_V * ALT_MAX_REDUCTION_V) // Maximum altitude expressed as 12-bit int
 #define TESTING
 #define MAX_OLED_STR 17
+#define BLANK_OLED_STR "                "
+#define INSTRUCTIONS_PER_CYCLE 3
+#define DISPLAY_DELAY 100
+
+enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF};
 
 void initADC(void);
 void initClock (void);
@@ -39,8 +44,6 @@ void ADCIntHandler(void);
 void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 uint8_t altitudeCalc(uint32_t rawADC);
-
-enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF};
 
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static circBuf_t circBufADC;
@@ -53,6 +56,7 @@ int main(void)
     char dispStr[MAX_OLED_STR];
     uint32_t averageADC;
     uint8_t altitudePercentage;
+
     initClock();
     initADC();
     initButtons();
@@ -75,11 +79,11 @@ int main(void)
                 usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
                 break;
             case ALT_MODE_OFF:
-                usnprintf(dispStr, MAX_OLED_STR, "                ");
+                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
                 break;
         }
         OLEDStringDraw(dispStr, 0, 0);
-        SysCtlDelay(MS_TO_CYCLES(500, clockRate));
+        SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
 
