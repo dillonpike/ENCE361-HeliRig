@@ -40,6 +40,9 @@ void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 uint8_t altitudeCalc(uint32_t rawADC);
 
+enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF};
+
+static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static circBuf_t circBufADC;
 static uint32_t clockRate;
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
@@ -64,8 +67,17 @@ int main(void)
     while (1) {
         averageADC = bufferMean(&circBufADC);
         altitudePercentage = altitudeCalc(averageADC);
-        // Constrain altitudePercentage to a valid range
-        usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d%%", altitudePercentage);
+        switch(curAltDispMode) {
+            case ALT_MODE_PERCENTAGE:
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d%%", altitudePercentage);
+                break;
+            case ALT_MODE_RAW_ADC:
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
+                break;
+            case ALT_MODE_OFF:
+                usnprintf(dispStr, MAX_OLED_STR, "                ");
+                break;
+        }
         OLEDStringDraw(dispStr, 0, 0);
         SysCtlDelay(MS_TO_CYCLES(500, clockRate));
     }
@@ -119,6 +131,8 @@ void SysTickIntHandler(void)
     updateButtons();
     if(initialAltRead && (checkButton(LEFT) == PUSHED))
         initialAlt = bufferMean(&circBufADC);
+    if(checkButton(UP) == PUSHED)
+        curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
 }
 
 uint32_t bufferMean(circBuf_t* circBuf)
