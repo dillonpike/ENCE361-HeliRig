@@ -1,3 +1,9 @@
+/** @file   main.c
+    @author Bailey Lissington, Dillon Pike, Joseph Ramirez
+    @date   24 March 2021
+    @brief  Accepts an analogue input and displays an altitude based on it.
+*/
+
 // Macro function definitions
 #define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
 #define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
@@ -51,6 +57,81 @@ static uint32_t clockRate;
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
 static uint32_t initialAlt;
 
+void initADC(void)
+{
+    // Enable ADC0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
+    // Configure sequence
+    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
+#ifdef TESTING
+    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+#else
+    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH9);
+#endif
+    ADCSequenceEnable(ADC0_BASE, 0);
+    ADCIntRegister (ADC0_BASE, 0, ADCIntHandler);
+    ADCIntEnable(ADC0_BASE, 0);
+}
+
+void initClock (void)
+{
+    // Set the clock rate to 20 MHz
+    SysCtlClockSet (SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+    clockRate = SysCtlClockGet();
+    SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
+    SysTickIntRegister(SysTickIntHandler);
+    SysTickIntEnable();
+    SysTickEnable();
+}
+
+void ADCIntHandler(void)
+{
+    static uint8_t sampleCount = 0;
+    uint32_t valADC;
+    ADCSequenceDataGet(ADC0_BASE, 0, &valADC);
+    writeCircBuf(&circBufADC, valADC);
+    ADCIntClear(ADC0_BASE, 0);
+    if(sampleCount < BUF_SIZE) {
+        sampleCount++;
+    } else {
+        initialAltRead = true;
+    }
+}
+
+/** Sets the initial altitude to the current circular buffer mean if the left button has been pushed.
+    Cycles to the next altitude display mode if the up button has been pushed.  */
+void SysTickIntHandler(void)
+{
+    ADCProcessorTrigger(ADC0_BASE, 0);
+    updateButtons();
+    if(initialAltRead && (checkButton(LEFT) == PUSHED))
+        initialAlt = bufferMean(&circBufADC);
+    if(checkButton(UP) == PUSHED)
+        curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
+}
+
+/** Calculates the mean of the values stored in a circular buffer.
+    @param address of circular buffer.
+    @return mean of buffer values.  */
+uint32_t bufferMean(circBuf_t* circBuf)
+{
+    uint32_t cumSum = 0;
+    uint16_t bufIndex;
+    for (bufIndex = 0; bufIndex < BUF_SIZE; bufIndex++)
+        cumSum += readCircBuf(circBuf);
+    return AVERAGE_OF_SUM(cumSum, BUF_SIZE);
+}
+
+/** Converts raw ADC to altitude percentage.
+    @param raw ADC value.
+    @return altitude percentage.  */
+uint8_t altitudeCalc(uint32_t rawADC)
+{
+    int16_t alt = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
+    return CONSTRAIN_PERCENT(alt); // Constrain between 0 and 100
+}
+
 int main(void)
 {
     char dispStr[MAX_OLED_STR];
@@ -85,73 +166,4 @@ int main(void)
         OLEDStringDraw(dispStr, 0, 0);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
-}
-
-void initADC(void)
-{
-    // Enable ADC0
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
-    // Configure sequence
-    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
-#ifdef TESTING
-    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
-#else
-    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH09);
-#endif
-    ADCSequenceEnable(ADC0_BASE, 0);
-    ADCIntRegister (ADC0_BASE, 0, ADCIntHandler);
-    ADCIntEnable(ADC0_BASE, 0);
-}
-
-void initClock (void)
-{
-    // Set the clock rate to 20 MHz
-    SysCtlClockSet (SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
-    clockRate = SysCtlClockGet();
-    SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
-    SysTickIntRegister(SysTickIntHandler);
-    SysTickIntEnable();
-    SysTickEnable();
-}
-
-void ADCIntHandler(void)
-{
-    static uint8_t sampleCount = 0;
-    uint32_t valADC;
-    ADCSequenceDataGet(ADC0_BASE, 0, &valADC);
-    writeCircBuf(&circBufADC, valADC);
-    ADCIntClear(ADC0_BASE, 0);
-    if(sampleCount < BUF_SIZE) {
-        sampleCount++;
-    } else {
-        initialAltRead = true;
-    }
-}
-
-void SysTickIntHandler(void)
-{
-    ADCProcessorTrigger(ADC0_BASE, 0);
-    updateButtons();
-    if(initialAltRead && (checkButton(LEFT) == PUSHED))
-        initialAlt = bufferMean(&circBufADC);
-    if(checkButton(UP) == PUSHED)
-        curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
-}
-
-uint32_t bufferMean(circBuf_t* circBuf)
-{
-    // sum the buffer contents
-    uint32_t cumSum = 0;
-    uint16_t bufIndex;
-    for (bufIndex = 0; bufIndex < BUF_SIZE; bufIndex++)
-        cumSum += readCircBuf(circBuf);
-    return AVERAGE_OF_SUM(cumSum, BUF_SIZE);
-}
-
-// Converts raw ADC to altitude in percentage
-uint8_t altitudeCalc(uint32_t rawADC)
-{
-    int16_t alt = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
-    return CONSTRAIN_PERCENT(alt); // Constrain between 0 and 100
 }
