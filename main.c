@@ -17,7 +17,7 @@
 #include <stdbool.h>
 
 // library includes
-#include "circBufT.h"
+#include "circBufT.h" // Obtained from P.J. Bones
 #include "inc/hw_memmap.h"
 #include "inc/tm4c123gh6pm.h"
 #include "driverlib/adc.h"
@@ -27,9 +27,9 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/uart.h"
 #include "driverlib/pin_map.h"
-#include "OrbitOLED/OrbitOLEDInterface.h"
+#include "OrbitOLED/OrbitOLEDInterface.h" // Obtained from mdp46
 #include "utils/ustdlib.h"
-#include "buttons4.h"
+#include "buttons4.h" // Obtained from P.J. Bones.
 #include "utils/uartstdio.h"
 
 // Constant definitions
