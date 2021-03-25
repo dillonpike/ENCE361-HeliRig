@@ -7,9 +7,11 @@
 // Macro function definitions
 #define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
 #define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
+
+/** Currently unneeded functions that may be useful later.
 #define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
 #define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
-#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range
+#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
 
 // standard library includes
 #include <stdio.h>
@@ -30,7 +32,7 @@
 #include "OrbitOLED/OrbitOLEDInterface.h" // Obtained from mdp46
 #include "utils/ustdlib.h"
 #include "buttons4.h" // Obtained from P.J. Bones.
-#include "utils/uartstdio.h"
+//#include "utils/uartstdio.h"
 
 // Constant definitions
 #define BUF_SIZE 10 // buffer size of the circular buffer
@@ -48,7 +50,7 @@
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 //#define DEBUG // Debug mode. Displays useful info via serial
-//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -58,8 +60,8 @@ void initClock (void);
 void ADCIntHandler(void);
 void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
-uint8_t altitudeCalc(uint32_t rawADC);
-void ConfigureUART(void);
+int16_t altitudeCalc(uint32_t rawADC);
+//void ConfigureUART(void);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -140,10 +142,10 @@ uint32_t bufferMean(circBuf_t* circBuf)
 /** Converts raw ADC to altitude percentage.
     @param raw ADC value.
     @return altitude percentage.  */
-uint8_t altitudeCalc(uint32_t rawADC)
+int16_t altitudeCalc(uint32_t rawADC)
 {
-    int16_t alt = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
-    return CONSTRAIN_PERCENT(alt); // Constrain between 0 and 100
+    int16_t alt_percent = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
+    return alt_percent; // Constrain between 0 and 100
 }
 
 /** Main function of the MCU. */
@@ -156,7 +158,7 @@ int main(void)
 #endif
     char dispStr[MAX_OLED_STR];
     uint32_t averageADC;
-    uint8_t altitudePercentage;
+    int16_t altitudePercentage;
 
     // Initialization of peripherals
     initClock();
@@ -165,7 +167,7 @@ int main(void)
     initCircBuf(&circBufADC, BUF_SIZE);
     OLEDInitialise();
     IntMasterEnable();
-    ConfigureUART();
+    //ConfigureUART();
 
     // Block until initial altitude reading
     while(!initialAltRead);
@@ -177,10 +179,10 @@ int main(void)
         // Sets different formatting of text depending on display mode of OLED
         switch(curAltDispMode) {
             case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %3d%%", altitudePercentage);
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
                 break;
             case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
                 break;
             case ALT_MODE_OFF:
                 usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
@@ -204,7 +206,7 @@ int main(void)
     }
 }
 
-/** Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
+/** Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.
 void ConfigureUART(void)
 {
     //
@@ -228,3 +230,4 @@ void ConfigureUART(void)
     // Initialize the UART for console I/O.
     UARTStdioConfig(0, 115200, 16000000);
 }
+*/
