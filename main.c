@@ -62,6 +62,8 @@ void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 int16_t altitudeCalc(uint32_t rawADC);
 void ConfigureUART(void);
+void PB0IntHandler(void);
+void PB1IntHandler(void);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -230,4 +232,27 @@ void ConfigureUART(void)
     // Initialize the UART for console I/O.
     UARTStdioConfig(0, 115200, 16000000);
 }
+
+void initGPIO(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
+    GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
+    GPIOIntRegisterPin(GPIO_PORTB_BASE, GPIO_PIN_0, PB0IntHandler);
+    GPIOIntRegisterPin(GPIO_PORTB_BASE, GPIO_PIN_1, PB1IntHandler);
+}
+
+void PB0IntHandler(void)
+{
+    ;
+}
+
+void PB1IntHandler(void)
+{
+    ;
+}
+
+
+
 
