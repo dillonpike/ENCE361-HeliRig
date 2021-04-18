@@ -32,7 +32,7 @@
 #include "OrbitOLED/OrbitOLEDInterface.h" // Obtained from mdp46
 #include "utils/ustdlib.h"
 #include "buttons4.h" // Obtained from P.J. Bones.
-//#include "utils/uartstdio.h"
+#include "utils/uartstdio.h"
 
 // Constant definitions
 #define BUF_SIZE 10 // buffer size of the circular buffer
@@ -167,7 +167,7 @@ int main(void)
     initCircBuf(&circBufADC, BUF_SIZE);
     OLEDInitialise();
     IntMasterEnable();
-    //ConfigureUART();
+    ConfigureUART();
 
     // Block until initial altitude reading
     while(!initialAltRead);
@@ -206,7 +206,7 @@ int main(void)
     }
 }
 
-/** Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.
+/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
 void ConfigureUART(void)
 {
     //
@@ -230,4 +230,4 @@ void ConfigureUART(void)
     // Initialize the UART for console I/O.
     UARTStdioConfig(0, 115200, 16000000);
 }
-*/
+
