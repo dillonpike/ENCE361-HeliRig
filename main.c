@@ -61,7 +61,7 @@ void ADCIntHandler(void);
 void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 int16_t altitudeCalc(uint32_t rawADC);
-//void ConfigureUART(void);
+void ConfigureUART(void);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
