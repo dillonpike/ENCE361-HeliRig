@@ -46,11 +46,13 @@
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
+#define DISC_SLOTS 112 // number of slots on the encoder disc
+#define DEGREES_PER_REV 360 // number of degrees in a full revolution
 
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 //#define DEBUG // Debug mode. Displays useful info via serial
-#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -64,6 +66,7 @@ int16_t altitudeCalc(uint32_t rawADC);
 void ConfigureUART(void);
 void GPIOBIntHandler(void);
 void initGPIO(void);
+int16_t yawDegrees(int16_t yawCount);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -109,7 +112,7 @@ int main(void)
                 usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
                 break;
             case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
                 break;
             case ALT_MODE_OFF:
                 usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
@@ -129,6 +132,8 @@ int main(void)
         UARTprintf(debugStr);
 #endif
         OLEDStringDraw(dispStr, 0, 0);
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees(yawCounter));
+        OLEDStringDraw(dispStr, 0, 1);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
@@ -192,6 +197,11 @@ void GPIOBIntHandler(void)
         } else {
             yawCounter--;
         }
+    }
+    if(yawCounter > DISC_SLOTS * 2) {
+        yawCounter -= DISC_SLOTS * 4;
+    } else if(yawCounter <= -2 * DISC_SLOTS) {
+        yawCounter += DISC_SLOTS * 4;
     }
 }
 /* Initialises the Analog to Digital Converter of the MCU */
@@ -272,6 +282,10 @@ int16_t altitudeCalc(uint32_t rawADC)
     return alt_percent; // Constrain between 0 and 100
 }
 
+// converts yaw from a counter to degrees
+int16_t yawDegrees(int16_t yawCount) {
+    return yawCount * DEGREES_PER_REV / (4 * DISC_SLOTS);
+}
 
 
 
