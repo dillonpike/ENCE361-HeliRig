@@ -46,11 +46,13 @@
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
+#define DISC_SLOTS 112 // number of slots on the encoder disc
+#define DEGREES_PER_REV 360 // number of degrees in a full revolution
 
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 //#define DEBUG // Debug mode. Displays useful info via serial
-#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -62,6 +64,9 @@ void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 int16_t altitudeCalc(uint32_t rawADC);
 void ConfigureUART(void);
+void GPIOBIntHandler(void);
+void initGPIO(void);
+int16_t yawDegrees(int16_t yawCount);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -69,7 +74,136 @@ static circBuf_t circBufADC;
 static uint32_t clockRate;
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
 static uint32_t initialAlt;
+static int16_t yawCounter = 0;
 
+
+/** Main function of the MCU. */
+int main(void)
+{
+    // local variable declarations
+#ifdef DEBUG
+    char debugStr[DEBUG_STR_LEN];
+    uint8_t debugStrI;
+#endif
+    char dispStr[MAX_OLED_STR];
+    uint32_t averageADC;
+    int16_t altitudePercentage;
+
+    // Initialization of peripherals
+    initClock();
+    initADC();
+    initButtons();
+    initCircBuf(&circBufADC, BUF_SIZE);
+    OLEDInitialise();
+    initGPIO();
+    IntMasterEnable();
+    ConfigureUART();
+
+    // Block until initial altitude reading
+    while(!initialAltRead);
+    initialAlt = bufferMean(&circBufADC);
+
+    while (1) {
+        averageADC = bufferMean(&circBufADC);
+        altitudePercentage = altitudeCalc(averageADC);
+        // Sets different formatting of text depending on display mode of OLED
+        switch(curAltDispMode) {
+            case ALT_MODE_PERCENTAGE:
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
+                break;
+            case ALT_MODE_RAW_ADC:
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
+                break;
+            case ALT_MODE_OFF:
+                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
+                break;
+        }
+#ifdef DEBUG
+        // Appends newline and /0 characters to dispStr for better formatting over Serial Terminal
+        debugStrI = 0;
+        while(dispStr[debugStrI] != 0) {
+            debugStr[debugStrI] = dispStr[debugStrI];
+            debugStrI++;
+        }
+        if(dispStr[debugStrI-1] == '%')
+            debugStr[debugStrI++] = '%'; // Escapes the % sign for printf
+        debugStr[debugStrI++] = '\n';
+        debugStr[debugStrI] = 0;
+        UARTprintf(debugStr);
+#endif
+        OLEDStringDraw(dispStr, 0, 0);
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees(yawCounter));
+        OLEDStringDraw(dispStr, 0, 1);
+        SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
+    }
+}
+
+/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
+void ConfigureUART(void)
+{
+    //
+    // Enable the GPIO Peripheral used by the UART.
+    //
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+    //
+    // Enable UART0
+    //
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+
+    // Configure GPIO Pins for UART mode.
+    GPIOPinConfigure(GPIO_PA0_U0RX);
+    GPIOPinConfigure(GPIO_PA1_U0TX);
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    // Use the internal 16MHz oscillator as the UART clock source.
+    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+
+    // Initialize the UART for console I/O.
+    UARTStdioConfig(0, 115200, 16000000);
+}
+
+void initGPIO(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
+    GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
+    GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
+}
+
+void GPIOBIntHandler(void)
+{
+    static bool aState = false; // arbitrary starting states
+    static bool bState = false;
+
+    uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
+    GPIOIntClear(GPIO_PORTB_BASE, status);
+
+    if(status & GPIO_PIN_0) { // channel A changes
+        aState = !aState;
+        if(aState != bState) { // if channel A leads
+            yawCounter--;
+        } else {
+            yawCounter++;
+        }
+    } else {
+        bState = !bState;
+        if(aState != bState) { // if channel B leads
+            yawCounter++;
+        } else {
+            yawCounter--;
+        }
+    }
+    if(yawCounter > DISC_SLOTS * 2) {
+        yawCounter -= DISC_SLOTS * 4;
+    } else if(yawCounter <= -2 * DISC_SLOTS) {
+        yawCounter += DISC_SLOTS * 4;
+    }
+}
 /* Initialises the Analog to Digital Converter of the MCU */
 void initADC(void)
 {
@@ -148,86 +282,10 @@ int16_t altitudeCalc(uint32_t rawADC)
     return alt_percent; // Constrain between 0 and 100
 }
 
-/** Main function of the MCU. */
-int main(void)
-{
-    // local variable declarations
-#ifdef DEBUG
-    char debugStr[DEBUG_STR_LEN];
-    uint8_t debugStrI;
-#endif
-    char dispStr[MAX_OLED_STR];
-    uint32_t averageADC;
-    int16_t altitudePercentage;
-
-    // Initialization of peripherals
-    initClock();
-    initADC();
-    initButtons();
-    initCircBuf(&circBufADC, BUF_SIZE);
-    OLEDInitialise();
-    IntMasterEnable();
-    ConfigureUART();
-
-    // Block until initial altitude reading
-    while(!initialAltRead);
-    initialAlt = bufferMean(&circBufADC);
-
-    while (1) {
-        averageADC = bufferMean(&circBufADC);
-        altitudePercentage = altitudeCalc(averageADC);
-        // Sets different formatting of text depending on display mode of OLED
-        switch(curAltDispMode) {
-            case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
-                break;
-            case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
-                break;
-            case ALT_MODE_OFF:
-                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
-                break;
-        }
-#ifdef DEBUG
-        // Appends newline and /0 characters to dispStr for better formatting over Serial Terminal
-        debugStrI = 0;
-        while(dispStr[debugStrI] != 0) {
-            debugStr[debugStrI] = dispStr[debugStrI];
-            debugStrI++;
-        }
-        if(dispStr[debugStrI-1] == '%')
-            debugStr[debugStrI++] = '%'; // Escapes the % sign for printf
-        debugStr[debugStrI++] = '\n';
-        debugStr[debugStrI] = 0;
-        UARTprintf(debugStr);
-#endif
-        OLEDStringDraw(dispStr, 0, 0);
-        SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
-    }
+// converts yaw from a counter to degrees
+int16_t yawDegrees(int16_t yawCount) {
+    return yawCount * DEGREES_PER_REV / (4 * DISC_SLOTS);
 }
 
-/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
-void ConfigureUART(void)
-{
-    //
-    // Enable the GPIO Peripheral used by the UART.
-    //
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
-    //
-    // Enable UART0
-    //
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-
-    // Configure GPIO Pins for UART mode.
-    GPIOPinConfigure(GPIO_PA0_U0RX);
-    GPIOPinConfigure(GPIO_PA1_U0TX);
-    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-
-    // Use the internal 16MHz oscillator as the UART clock source.
-    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
-
-    // Initialize the UART for console I/O.
-    UARTStdioConfig(0, 115200, 16000000);
-}
 
