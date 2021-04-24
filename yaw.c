@@ -13,6 +13,9 @@
 #include "driverlib/sysctl.h"
 #include "yaw.h"
 
+// global yaw counter that tracks how many disc slots the reader is away from the origin
+static volatile int16_t yawCounter = 0;
+
 /* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
 {
@@ -26,24 +29,48 @@ void initGPIO(void)
     GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
 }
 
-/** Constrains yawCount between -2 * DISC_SLOTS and 2 * DISC_SLOTS.
-    @param yawCount a counter for yaw.
-    @return constrained yawCount.  */
-int16_t yawConstrain(int16_t yawCount)
+/** Interrupt handler for when the value on the pins monitoring yaw changes.
+    Increments yawCounter if channel A leads (clockwise).
+    Decrements yawCounter if channel B leads (counter-clockwise).  */
+void GPIOBIntHandler(void)
 {
-    if(yawCount > DISC_SLOTS * 2) {
-        yawCount -= DISC_SLOTS * 4;
-    } else if(yawCount <= -2 * DISC_SLOTS) {
-        yawCount += DISC_SLOTS * 4;
+    static bool aState = false; // arbitrary starting states
+    static bool bState = false;
+
+    uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
+    GPIOIntClear(GPIO_PORTB_BASE, status);
+
+    if(status & GPIO_PIN_0) { // if channel A changes
+        aState = !aState;
+        if(aState != bState) { // if channel A leads
+            yawCounter--;
+        } else {
+            yawCounter++;
+        }
+    } else {
+        bState = !bState;
+        if(aState != bState) { // if channel B leads
+            yawCounter++;
+        } else {
+            yawCounter--;
+        }
     }
-    return yawCount;
+    yawConstrain();
 }
 
-/** Converts yawCount to degrees.
-    @param yawCount a counter for yaw.
-    @return yawCount converted to degrees.  */
-int16_t yawDegrees(int16_t yawCount)
+/** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
+void yawConstrain(void)
 {
-    return yawCount * DEGREES_PER_REV / (4 * DISC_SLOTS);
+    if(yawCounter > DISC_SLOTS * 2) {
+        yawCounter -= DISC_SLOTS * 4;
+    } else if(yawCounter <= -2 * DISC_SLOTS) {
+        yawCounter += DISC_SLOTS * 4;
+    }
 }
 
+/** Converts yawCounter to degrees and returns it.
+    @return yawCounter converted to degrees.  */
+int16_t getYawDegrees(void)
+{
+    return yawCounter * DEGREES_PER_REV / (4 * DISC_SLOTS);
+}

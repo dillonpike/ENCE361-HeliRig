@@ -65,7 +65,6 @@ static uint32_t clockRate;
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
 static uint32_t initialAlt;
 
-
 /** Main function of the MCU.  */
 int main(void)
 {
@@ -121,39 +120,10 @@ int main(void)
         UARTprintf(debugStr);
 #endif
         OLEDStringDraw(dispStr, 0, 0);
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees(yawCounter));
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", getYawDegrees());
         OLEDStringDraw(dispStr, 0, 1);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
-}
-
-/** Interrupt handler for when the value on the pins monitoring yaw changes.
-    Increments yawCounter if channel A leads (clockwise).
-    Decrements yawCounter if channel B leads (counter-clockwise).  */
-void GPIOBIntHandler(void)
-{
-    static bool aState = false; // arbitrary starting states
-    static bool bState = false;
-
-    uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
-    GPIOIntClear(GPIO_PORTB_BASE, status);
-
-    if(status & GPIO_PIN_0) { // if channel A changes
-        aState = !aState;
-        if(aState != bState) { // if channel A leads
-            yawCounter--;
-        } else {
-            yawCounter++;
-        }
-    } else {
-        bState = !bState;
-        if(aState != bState) { // if channel B leads
-            yawCounter++;
-        } else {
-            yawCounter--;
-        }
-    }
-    yawCounter = yawConstrain(yawCounter);
 }
 
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */

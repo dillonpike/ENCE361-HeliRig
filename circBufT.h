@@ -58,4 +58,5 @@ freeCircBuf (circBuf_t *buffer);
 uint32_t
 bufferMean(circBuf_t* circBuf);
 
+
 #endif /*CIRCBUFT_H_*/
