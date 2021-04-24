@@ -13,8 +13,8 @@
 #include "driverlib/sysctl.h"
 #include "yaw.h"
 
-// global yaw counter that tracks how many disc slots the reader is away from the origin
-static volatile int16_t yawCounter = 0;
+// yaw counter that tracks how many disc slots the reader is away from the origin
+volatile int16_t yawCounter = 0;
 
 /* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
