@@ -1,6 +1,6 @@
 /** @file   main.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   24 March 2021
+    @date   22 April 2021
     @brief  Accepts an analogue input and displays an altitude based on it.
 */
 
@@ -33,6 +33,7 @@
 #include "utils/ustdlib.h"
 #include "buttons4.h" // Obtained from P.J. Bones.
 #include "utils/uartstdio.h"
+#include "yaw.h"
 
 // Constant definitions
 #define BUF_SIZE 10 // buffer size of the circular buffer
@@ -46,13 +47,11 @@
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
-#define DISC_SLOTS 112 // number of slots on the encoder disc
-#define DEGREES_PER_REV 360 // number of degrees in a full revolution
 
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
-//#define DEBUG // Debug mode. Displays useful info via serial
-//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+#define DEBUG // Debug mode. Displays useful info via serial
+#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -64,9 +63,6 @@ void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
 int16_t altitudeCalc(uint32_t rawADC);
 void ConfigureUART(void);
-void GPIOBIntHandler(void);
-void initGPIO(void);
-int16_t yawDegrees(int16_t yawCount);
 
 // Global variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -74,7 +70,6 @@ static circBuf_t circBufADC;
 static uint32_t clockRate;
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
 static uint32_t initialAlt;
-static int16_t yawCounter = 0;
 
 
 /** Main function of the MCU. */
@@ -112,7 +107,7 @@ int main(void)
                 usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
                 break;
             case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d", averageADC);
+                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
                 break;
             case ALT_MODE_OFF:
                 usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
@@ -136,6 +131,35 @@ int main(void)
         OLEDStringDraw(dispStr, 0, 1);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
+}
+
+/** Interrupt handler for when the value on the pins monitoring yaw changes.
+    Increments yawCounter if channel A leads (clockwise).
+    Decrements yawCounter if channel B leads (counter-clockwise). */
+void GPIOBIntHandler(void)
+{
+    static bool aState = false; // arbitrary starting states
+    static bool bState = false;
+
+    uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
+    GPIOIntClear(GPIO_PORTB_BASE, status);
+
+    if(status & GPIO_PIN_0) { // if channel A changes
+        aState = !aState;
+        if(aState != bState) { // if channel A leads
+            yawCounter--;
+        } else {
+            yawCounter++;
+        }
+    } else {
+        bState = !bState;
+        if(aState != bState) { // if channel B leads
+            yawCounter++;
+        } else {
+            yawCounter--;
+        }
+    }
+    yawCounter = yawConstrain(yawCounter);
 }
 
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
@@ -163,48 +187,7 @@ void ConfigureUART(void)
     UARTStdioConfig(0, 115200, 16000000);
 }
 
-void initGPIO(void)
-{
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-
-    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-    GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-
-    GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
-    GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
-    GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
-}
-
-void GPIOBIntHandler(void)
-{
-    static bool aState = false; // arbitrary starting states
-    static bool bState = false;
-
-    uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
-    GPIOIntClear(GPIO_PORTB_BASE, status);
-
-    if(status & GPIO_PIN_0) { // channel A changes
-        aState = !aState;
-        if(aState != bState) { // if channel A leads
-            yawCounter--;
-        } else {
-            yawCounter++;
-        }
-    } else {
-        bState = !bState;
-        if(aState != bState) { // if channel B leads
-            yawCounter++;
-        } else {
-            yawCounter--;
-        }
-    }
-    if(yawCounter > DISC_SLOTS * 2) {
-        yawCounter -= DISC_SLOTS * 4;
-    } else if(yawCounter <= -2 * DISC_SLOTS) {
-        yawCounter += DISC_SLOTS * 4;
-    }
-}
-/* Initialises the Analog to Digital Converter of the MCU */
+/* Initialises the Analog to Digital Converter of the MCU.  */
 void initADC(void)
 {
     // Enable ADC0
@@ -222,7 +205,7 @@ void initADC(void)
     ADCIntEnable(ADC0_BASE, 0);
 }
 
-/* Initialisation of the clock and systick */
+/* Initialisation of the clock and systick. */
 void initClock (void)
 {
     // Set the clock rate to 20 MHz
@@ -281,11 +264,3 @@ int16_t altitudeCalc(uint32_t rawADC)
     int16_t alt_percent = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
     return alt_percent; // Constrain between 0 and 100
 }
-
-// converts yaw from a counter to degrees
-int16_t yawDegrees(int16_t yawCount) {
-    return yawCount * DEGREES_PER_REV / (4 * DISC_SLOTS);
-}
-
-
-
