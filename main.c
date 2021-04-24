@@ -4,14 +4,8 @@
     @brief  Accepts an analogue input and displays an altitude based on it.
 */
 
-// Macro function definitions
+// Macro function definition
 #define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
-#define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
-
-/** Currently unneeded functions that may be useful later.
-#define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
-#define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
-#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
 
 // standard library includes
 #include <stdio.h>
@@ -57,7 +51,7 @@ enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Displ
 
 // function prototypes
 void initADC(void);
-void initClock (void);
+void initClock(void);
 void ADCIntHandler(void);
 void SysTickIntHandler(void);
 uint32_t bufferMean(circBuf_t* circBuf);
@@ -72,7 +66,7 @@ static volatile bool initialAltRead = false; // Has the initial altitude been re
 static uint32_t initialAlt;
 
 
-/** Main function of the MCU. */
+/** Main function of the MCU.  */
 int main(void)
 {
     // local variable declarations
@@ -95,7 +89,7 @@ int main(void)
     ConfigureUART();
 
     // Block until initial altitude reading
-    while(!initialAltRead);
+    while (!initialAltRead);
     initialAlt = bufferMean(&circBufADC);
 
     while (1) {
@@ -135,7 +129,7 @@ int main(void)
 
 /** Interrupt handler for when the value on the pins monitoring yaw changes.
     Increments yawCounter if channel A leads (clockwise).
-    Decrements yawCounter if channel B leads (counter-clockwise). */
+    Decrements yawCounter if channel B leads (counter-clockwise).  */
 void GPIOBIntHandler(void)
 {
     static bool aState = false; // arbitrary starting states
@@ -201,15 +195,15 @@ void initADC(void)
     ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH9);
 #endif
     ADCSequenceEnable(ADC0_BASE, 0);
-    ADCIntRegister (ADC0_BASE, 0, ADCIntHandler);
+    ADCIntRegister(ADC0_BASE, 0, ADCIntHandler);
     ADCIntEnable(ADC0_BASE, 0);
 }
 
 /* Initialisation of the clock and systick. */
-void initClock (void)
+void initClock(void)
 {
     // Set the clock rate to 20 MHz
-    SysCtlClockSet (SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+    SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
     clockRate = SysCtlClockGet();
     SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
     SysTickIntRegister(SysTickIntHandler);
@@ -242,18 +236,6 @@ void SysTickIntHandler(void)
         initialAlt = bufferMean(&circBufADC);
     if(checkButton(UP) == PUSHED)
         curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
-}
-
-/** Calculates the mean of the values stored in a circular buffer.
-    @param address of circular buffer.
-    @return mean of buffer values.  */
-uint32_t bufferMean(circBuf_t* circBuf)
-{
-    uint32_t cumSum = 0;
-    uint16_t bufIndex;
-    for (bufIndex = 0; bufIndex < BUF_SIZE; bufIndex++)
-        cumSum += readCircBuf(circBuf);
-    return AVERAGE_OF_SUM(cumSum, BUF_SIZE);
 }
 
 /** Converts raw ADC to altitude percentage.

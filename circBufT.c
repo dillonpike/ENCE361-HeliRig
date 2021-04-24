@@ -3,15 +3,21 @@
 // circBufT.c
 //
 // Support for a circular buffer of uint32_t values on the 
-//  Tiva processor.
+// Tiva processor.
 // P.J. Bones UCECE
 // Last modified:  8.3.2017
 // 
+// bufferMean function and AVERAGE_OF_SUM macro added by
+// Bailey Lissington, Dillon Pike, and Joseph Ramirez on
+// 24 April 2021
 // *******************************************************
 
 #include <stdint.h>
 #include "stdlib.h"
 #include "circBufT.h"
+
+// Macro function definition
+#define AVERAGE_OF_SUM(sum, n) ((2 * (sum) + (n)) / 2 / (n)) // Averages the sum
 
 // *******************************************************
 // initCircBuf: Initialise the circBuf instance. Reset both indices to
@@ -70,5 +76,18 @@ freeCircBuf (circBuf_t * buffer)
 	buffer->size = 0;
 	free (buffer->data);
 	buffer->data = NULL;
+}
+
+/** Calculates the mean of the values stored in a circular buffer.
+    @param address of circular buffer.
+    @return mean of buffer values.  */
+uint32_t
+bufferMean(circBuf_t* circBuf)
+{
+    uint32_t cumSum = 0;
+    uint16_t bufIndex;
+    for (bufIndex = 0; bufIndex < circBuf->size; bufIndex++)
+        cumSum += readCircBuf(circBuf);
+    return AVERAGE_OF_SUM(cumSum, circBuf->size);
 }
 
