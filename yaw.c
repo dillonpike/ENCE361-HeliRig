@@ -1,6 +1,6 @@
 /** @file   yaw.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   24 April 2021
+    @date   26 April 2021
     @brief  Functions related to yaw monitoring.
 */
 
@@ -13,8 +13,12 @@
 #include "driverlib/sysctl.h"
 #include "yaw.h"
 
-// yaw counter that tracks how many disc slots the reader is away from the origin
+// global yaw counter variable that tracks how many disc slots the reader is away from the origin
 volatile int16_t yawCounter = 0;
+
+// global variables that track the state of channel A and B
+volatile bool aState;
+volatile bool bState;
 
 /* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
@@ -29,14 +33,18 @@ void initGPIO(void)
     GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
 }
 
+/** Assigns the initial states of channel A and B to aState and bState.  */
+void initYawStates(void)
+{
+    aState = GPIOPinRead(GPIO_PORTB_BASE, GPIO_PIN_0) & 1;
+    bState = (GPIOPinRead(GPIO_PORTB_BASE, GPIO_PIN_1) >> 1) & 1;
+}
+
 /** Interrupt handler for when the value on the pins monitoring yaw changes.
     Increments yawCounter if channel A leads (clockwise).
     Decrements yawCounter if channel B leads (counter-clockwise).  */
 void GPIOBIntHandler(void)
 {
-    static bool aState = false; // arbitrary starting states
-    static bool bState = false;
-
     uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
     GPIOIntClear(GPIO_PORTB_BASE, status);
 

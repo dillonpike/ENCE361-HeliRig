@@ -45,7 +45,7 @@
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
-#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -84,6 +84,7 @@ int main(void)
     initCircBuf(&circBufADC, BUF_SIZE);
     OLEDInitialise();
     initGPIO();
+    initYawStates();
     IntMasterEnable();
     ConfigureUART();
 

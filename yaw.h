@@ -1,6 +1,6 @@
 /** @file   yaw.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   24 April 2021
+    @date   26 April 2021
     @brief  Functions related to yaw monitoring.
 */
 
@@ -14,6 +14,9 @@
 
 /* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void);
+
+/** Assigns the initial states of channel A and B to aState and bState.  */
+void initYawStates(void);
 
 /** Interrupt handler for when the value on the pins monitoring yaw changes.
     Increments yawCounter if channel A leads (clockwise).
