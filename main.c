@@ -45,7 +45,7 @@
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
-//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
+#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -130,14 +130,10 @@ int main(void)
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
 void ConfigureUART(void)
 {
-    //
     // Enable the GPIO Peripheral used by the UART.
-    //
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
-    //
     // Enable UART0
-    //
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 
     // Configure GPIO Pins for UART mode.
@@ -215,5 +211,5 @@ void SysTickIntHandler(void)
 int16_t altitudeCalc(uint32_t rawADC)
 {
     int16_t alt_percent = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
-    return alt_percent; // Constrain between 0 and 100
+    return alt_percent;
 }

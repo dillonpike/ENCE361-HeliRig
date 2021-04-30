@@ -14,11 +14,11 @@
 #include "yaw.h"
 
 // global yaw counter variable that tracks how many disc slots the reader is away from the origin
-volatile int16_t yawCounter = 0;
+static volatile int16_t yawCounter = 0;
 
 // global variables that track the state of channel A and B
-volatile bool aState;
-volatile bool bState;
+static volatile bool aState;
+static volatile bool bState;
 
 /* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
