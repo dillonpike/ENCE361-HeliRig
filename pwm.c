@@ -69,7 +69,7 @@
 
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
 
-enum rotor {MAIN, TAIL}; // rotor enumerator
+typedef enum {MAIN, TAIL} rotor; // rotor enumerator
 
 /*******************************************
  *      Local prototypes
@@ -106,7 +106,7 @@ initialisePWM (void)
     PWMGenConfigure(PWM_MAIN_BASE, PWM_MAIN_GEN,
                     PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
     // Set the initial PWM parameters
-    setPWM (PWM_START_RATE_HZ, PWM_FIXED_DUTY, MAIN);
+    setPWM (PWM_START_RATE_HZ, PWM_START_DUTY, MAIN);
 
     PWMGenEnable(PWM_MAIN_BASE, PWM_MAIN_GEN);
 
