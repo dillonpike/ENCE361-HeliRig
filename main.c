@@ -31,16 +31,15 @@
 #include "yaw.h"
 
 // Constant definitions
-#define BUF_SIZE 20 // buffer size of the circular buffer
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
-#define DEBUG_STR_LEN 18 // buffer size for uart debugging strings; +1 of MAX_OLED_STR to check for end of str disp
+#define DEBUG_STR_LEN 20 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
-#define DEBUG // Debug mode. Displays useful info via serial
+//#define DEBUG // Debug mode. Displays useful info via serial
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
