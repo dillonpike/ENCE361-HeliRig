@@ -9,12 +9,11 @@
 #define ALT_H
 
 
-//#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
-#define BUF_SIZE 20 // buffer size of the circular buffer definition's in main as well since there's no need for initCircBuf in here
 #define ADC_MAX 4095 // max raw value from the adc (2**12-1)
 #define ADC_MAX_V 3.3 // Max voltage the ADC can handle
 #define ALT_MAX_REDUCTION_V 1.0 // Voltage the altitude sensor reduces by at 100 % altitude
 #define MAX_ALT (ADC_MAX / ADC_MAX_V * ALT_MAX_REDUCTION_V) // Maximum altitude expressed as 12-bit int
+#define BUF_SIZE 10
 
 
 // Global variables needed by alt.c and main.c
