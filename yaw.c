@@ -4,10 +4,11 @@
     @brief  Functions related to yaw monitoring.
 */
 
-
+// library includes
 #include <stdint.h>
 #include <stdbool.h>
 
+// library includes
 #include "inc/hw_memmap.h"
 #include "driverlib/gpio.h"
 #include "driverlib/sysctl.h"
@@ -20,7 +21,7 @@ static volatile int16_t yawCounter = 0;
 static volatile bool aState;
 static volatile bool bState;
 
-/* Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
+/** Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);

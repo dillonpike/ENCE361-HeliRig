@@ -27,56 +27,35 @@
 #include "utils/ustdlib.h"
 #include "buttons4.h" // Obtained from P.J. Bones.
 #include "utils/uartstdio.h"
+#include "alt.h"
 #include "yaw.h"
 
 // Constant definitions
-#define BUF_SIZE 10 // buffer size of the circular buffer
+#define BUF_SIZE 20 // buffer size of the circular buffer
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
-#define ADC_MAX_V 3.3 // Max voltage the ADC can handle
-#define ALT_MAX_REDUCTION_V 1.0 // Voltage the altitude sensor reduces by at 100 % altitude
-#define ADC_MAX 4095 // max raw value from the adc (2**12-1)
-#define MAX_ALT (ADC_MAX / ADC_MAX_V * ALT_MAX_REDUCTION_V) // Maximum altitude expressed as 12-bit int
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
-#define DEBUG_STR_LEN 20 // buffer size for uart debugging strings
+#define DEBUG_STR_LEN 18 // buffer size for uart debugging strings; +1 of MAX_OLED_STR to check for end of str disp
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
 
-
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
-#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
 // function prototypes
-void initADC(void);
 void initClock(void);
-void ADCIntHandler(void);
 void SysTickIntHandler(void);
-uint32_t bufferMean(circBuf_t* circBuf);
-int16_t altitudeCalc(uint32_t rawADC);
 void ConfigureUART(void);
 
-// Global variable declarations
+//main.c variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
-static circBuf_t circBufADC;
 static uint32_t clockRate;
-static volatile bool initialAltRead = false; // Has the initial altitude been read?
-static uint32_t initialAlt;
 
 /** Main function of the MCU.  */
 int main(void)
 {
-    // local variable declarations
-#ifdef DEBUG
-    char debugStr[DEBUG_STR_LEN];
-    uint8_t debugStrI;
-#endif
-    char dispStr[MAX_OLED_STR];
-    uint32_t averageADC;
-    int16_t altitudePercentage;
-
     // Initialization of peripherals
     initClock();
     initADC();
@@ -88,12 +67,16 @@ int main(void)
     IntMasterEnable();
     ConfigureUART();
 
-    // Block until initial altitude reading
-    while (!initialAltRead);
-    initialAlt = bufferMean(&circBufADC);
+    // local variable declarations
+    char dispStr[MAX_OLED_STR];
+    uint32_t averageADC;
+    int16_t altitudePercentage;
 
-    while (1) {
-        averageADC = bufferMean(&circBufADC);
+    initialAlt = altRead(); //takes first reading as initial alt (constant)
+
+    while (1)
+    {
+        averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
         // Sets different formatting of text depending on display mode of OLED
         switch(curAltDispMode) {
@@ -107,25 +90,30 @@ int main(void)
                 usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
                 break;
         }
-#ifdef DEBUG
-        // Appends newline and /0 characters to dispStr for better formatting over Serial Terminal
-        debugStrI = 0;
-        while(dispStr[debugStrI] != 0) {
-            debugStr[debugStrI] = dispStr[debugStrI];
-            debugStrI++;
-        }
-        if(dispStr[debugStrI-1] == '%')
-            debugStr[debugStrI++] = '%'; // Escapes the % sign for printf
-        debugStr[debugStrI++] = '\n';
-        debugStr[debugStrI] = 0;
-        UARTprintf(debugStr);
-#endif
-        OLEDStringDraw(dispStr, 0, 0);
+        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
+
+        #ifdef DEBUG //Checks the value of str displayed in oled is defined;
+            char debugStr[DEBUG_STR_LEN];
+            uint8_t debugStrI;
+            // Appends newline and /0 characters to dispStr for better formatting over Serial Terminal
+            debugStrI = 0;
+            while(dispStr[debugStrI] != 0) { // check if debugStrI is end of str
+                debugStr[debugStrI] = dispStr[debugStrI];
+                debugStrI++; // appends if debugStrI isn't end of str
+            }
+            if(dispStr[debugStrI-1] == '%')
+                debugStr[debugStrI++] = '%'; // Escapes the % sign for printf
+            debugStr[debugStrI++] = '\n';
+            debugStr[debugStrI] = 0;
+            UARTprintf(debugStr);
+        #endif
+
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", getYawDegrees());
-        OLEDStringDraw(dispStr, 0, 1);
+        OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
+
 
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
 void ConfigureUART(void)
@@ -148,23 +136,7 @@ void ConfigureUART(void)
     UARTStdioConfig(0, 115200, 16000000);
 }
 
-/* Initialises the Analog to Digital Converter of the MCU.  */
-void initADC(void)
-{
-    // Enable ADC0
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
-    // Configure sequence
-    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
-#ifdef TESTING
-    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
-#else
-    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH9);
-#endif
-    ADCSequenceEnable(ADC0_BASE, 0);
-    ADCIntRegister(ADC0_BASE, 0, ADCIntHandler);
-    ADCIntEnable(ADC0_BASE, 0);
-}
+
 
 /* Initialisation of the clock and systick. */
 void initClock(void)
@@ -178,38 +150,15 @@ void initClock(void)
     SysTickEnable();
 }
 
-/** Interrupt handler for when the ADC finishes conversion.  */
-void ADCIntHandler(void)
-{
-    static uint8_t sampleCount = 0;
-    uint32_t valADC;
-    ADCSequenceDataGet(ADC0_BASE, 0, &valADC);
-    writeCircBuf(&circBufADC, valADC);
-    ADCIntClear(ADC0_BASE, 0);
-    if(sampleCount < BUF_SIZE) {
-        sampleCount++;
-    } else {
-        initialAltRead = true;
-    }
-}
-
 /** Sets the initial altitude to the current circular buffer mean if the left button has been pushed.
     Cycles to the next altitude display mode if the up button has been pushed.  */
 void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
     updateButtons();
-    if(initialAltRead && (checkButton(LEFT) == PUSHED))
-        initialAlt = bufferMean(&circBufADC);
+    if((checkButton(LEFT) == PUSHED))
+        initialAlt = altRead(); // takes a new value for initialAlt
     if(checkButton(UP) == PUSHED)
         curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
 }
 
-/** Converts raw ADC to altitude percentage.
-    @param raw ADC value.
-    @return altitude percentage.  */
-int16_t altitudeCalc(uint32_t rawADC)
-{
-    int16_t alt_percent = (int16_t)(initialAlt - rawADC) * 100 / MAX_ALT;
-    return alt_percent;
-}
