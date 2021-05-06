@@ -6,7 +6,7 @@
  * Modified to generate a second PWM output (M1PWM5)
  * by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
  *
- * Last modified:  30 April 2021
+ * Last modified:  7 May 2021
  **********************************************************/
 
 #include <stdint.h>
@@ -17,31 +17,25 @@
 #include "driverlib/debug.h"
 #include "driverlib/gpio.h"
 #include "driverlib/pwm.h"
-#include "driverlib/systick.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"
 #include "buttons4.h"
 #include "OrbitOLED/OrbitOLEDInterface.h" // Obtained from mdp46
+#include "pwm.h"
 
 /**********************************************************
  * Constants
  **********************************************************/
-// Systick configuration
-#define SYSTICK_RATE_HZ    100
 
 // PWM configuration
-#define PWM_START_RATE_HZ  250
-#define PWM_RATE_STEP_HZ   50
-#define PWM_RATE_MIN_HZ    50
-#define PWM_RATE_MAX_HZ    400
+#define PWM_FIXED_HZ       250
 #define PWM_START_DUTY     60
+#define PWM_TAIL_DUTY      10
 #define PWM_DUTY_STEP      5
-#define PWM_DUTY_MIN       5
-#define PWM_DUTY_MAX       95
+#define PWM_DUTY_MIN       2
+#define PWM_DUTY_MAX       98
 #define PWM_DIVIDER_CODE   SYSCTL_PWMDIV_4
 #define PWM_DIVIDER        4
-#define PWM_TAIL_RATE_HZ   200
-#define PWM_TAIL_DUTY      10
 
 //  PWM Hardware Details M0PWM7 (gen 3)
 //  ---Main Rotor PWM: PC5, J4-05
@@ -67,19 +61,6 @@
 #define PWM_TAIL_GPIO_CONFIG GPIO_PF1_M1PWM5
 #define PWM_TAIL_GPIO_PIN    GPIO_PIN_1
 
-#define MAX_OLED_STR 17 // maximum allowable string for the OLED display
-
-typedef enum {MAIN, TAIL} rotor; // rotor enumerator
-
-/*******************************************
- *      Local prototypes
- *******************************************/
-void SysTickIntHandler (void);
-void initClocks (void);
-void initSysTick (void);
-void initialisePWM (void);
-void setPWM (uint32_t u32Freq, uint32_t u32Duty, rotor chosenRotor);
-
 /***********************************************************
  * Initialisation function for PWM Clock.
  ***********************************************************/
@@ -91,7 +72,7 @@ initPWMClock (void)
 }
 
 /*********************************************************
- * initialisePWMMain
+ * initialisePWM
  * M0PWM7 (J4-05, PC5) is used for the main rotor motor
  *********************************************************/
 void
@@ -106,7 +87,7 @@ initialisePWM (void)
     PWMGenConfigure(PWM_MAIN_BASE, PWM_MAIN_GEN,
                     PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
     // Set the initial PWM parameters
-    setPWM (PWM_START_RATE_HZ, PWM_START_DUTY, MAIN);
+    setPWMDuty (PWM_START_DUTY, MAIN);
 
     PWMGenEnable(PWM_MAIN_BASE, PWM_MAIN_GEN);
 
@@ -131,7 +112,7 @@ initialisePWMTail (void)
     PWMGenConfigure(PWM_TAIL_BASE, PWM_TAIL_GEN,
                     PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
     // Set the initial PWM parameters
-    setPWM (PWM_TAIL_RATE_HZ, PWM_TAIL_DUTY, TAIL);
+    setPWMDuty (PWM_TAIL_DUTY, TAIL);
 
     PWMGenEnable(PWM_TAIL_BASE, PWM_TAIL_GEN);
 
@@ -140,15 +121,15 @@ initialisePWMTail (void)
 }
 
 /********************************************************
- * Function to set the freq and duty cycle of M0PWM7.
- * Modified to also set freq and duty cycle of M1PWM5.
+ * Function to set the duty cycle of M0PWM7.
+ * Modified to also set duty cycle of M1PWM5.
  ********************************************************/
 void
-setPWM (uint32_t ui32Freq, uint32_t ui32Duty, rotor chosenRotor)
+setPWMDuty (uint32_t ui32Duty, rotor chosenRotor)
 {
     // Calculate the PWM period corresponding to the freq.
     uint32_t ui32Period =
-        SysCtlClockGet() / PWM_DIVIDER / ui32Freq;
+        SysCtlClockGet() / PWM_DIVIDER / PWM_FIXED_HZ;
 
     if (chosenRotor == MAIN) {
     PWMGenPeriodSet(PWM_MAIN_BASE, PWM_MAIN_GEN, ui32Period);
