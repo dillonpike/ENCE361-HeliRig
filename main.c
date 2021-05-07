@@ -39,7 +39,7 @@
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
-//#define DEBUG // Debug mode. Displays useful info via serial
+#define DEBUG // Debug mode. Displays useful info via serial
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 
@@ -47,6 +47,7 @@ enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Displ
 void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
+void uartDebugPrint(char* debugStr);
 
 //main.c variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -91,23 +92,17 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
-        #ifdef DEBUG //Checks the value of str displayed in oled is defined;
-            char debugStr[DEBUG_STR_LEN];
-            uint8_t debugStrI;
-            // Appends newline and /0 characters to dispStr for better formatting over Serial Terminal
-            debugStrI = 0;
-            while(dispStr[debugStrI] != 0) { // check if debugStrI is end of str
-                debugStr[debugStrI] = dispStr[debugStrI];
-                debugStrI++; // appends if debugStrI isn't end of str
-            }
-            if(dispStr[debugStrI-1] == '%')
-                debugStr[debugStrI++] = '%'; // Escapes the % sign for printf
-            debugStr[debugStrI++] = '\n';
-            debugStr[debugStrI] = 0;
-            UARTprintf(debugStr);
-        #endif
+
+#ifdef DEBUG
+        uartDebugPrint(dispStr);
+#endif
 
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", getYawDegrees());
+
+#ifdef DEBUG
+        uartDebugPrint(dispStr);
+#endif
+
         OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
@@ -161,3 +156,17 @@ void SysTickIntHandler(void)
         curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
 }
 
+void uartDebugPrint(char* debugStr)
+{
+    char uartStr[DEBUG_STR_LEN];
+    uint8_t uartStrI = 0;
+    while(debugStr[uartStrI] != 0) { // check if uartStrI is end of str
+        uartStr[uartStrI] = debugStr[uartStrI];
+        uartStrI++; // appends if uartStrI isn't end of str
+    }
+    if(debugStr[uartStrI-1] == '%')
+        uartStr[uartStrI++] = '%'; // Escapes the % sign for printf
+    uartStr[uartStrI++] = '\n';
+    uartStr[uartStrI] = 0;
+    UARTprintf(uartStr);
+}
