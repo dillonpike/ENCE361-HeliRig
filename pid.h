@@ -17,7 +17,7 @@
 void initMainPid(void);
 void initTailPid(void);
 
-float mainPidCompute(float setPoint, float input);
-float tailPidCompute(float setPoint, float input);
+double mainPidCompute(double setPoint, double input);
+double tailPidCompute(double setPoint, double input);
 
 #endif /* PID_H_ */
