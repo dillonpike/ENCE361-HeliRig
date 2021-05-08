@@ -14,6 +14,9 @@
 #define TAIL_PID_KP 1
 #define TAIL_PID_KI 1
 
+#define PID_MAX 98
+#define PID_MIN 2
+
 void initMainPid(void);
 void initTailPid(void);
 

@@ -14,9 +14,18 @@ double mainPidCompute(double setPoint, double input, double deltaT)
 {
     double control;
     double error = setPoint - input;
-    mainErrorIntegral += error * deltaT;
+    double deltaI = error * deltaT;
 
-    control = error * MAIN_PID_KP + mainErrorIntegral * MAIN_PID_KI;
+    control = error * MAIN_PID_KP + (mainErrorIntegral + deltaI) * MAIN_PID_KI;
+
+    if(control < PID_MIN) {
+        control = PID_MIN;
+    } else if (control > PID_MAX) {
+        control = PID_MAX;
+    } else {
+        mainErrorIntegral += deltaI;
+    }
+
     return control;
 }
 
@@ -24,8 +33,17 @@ double tailPidCompute(double setPoint, double input, double deltaT)
 {
     double control;
     double error = setPoint - input;
-    tailErrorIntegral += error * deltaT;
+    double deltaI = error * deltaT; // change in integral since last computation
 
-    control = error * MAIN_PID_KP + tailErrorIntegral * MAIN_PID_KI;
+    control = error * TAIL_PID_KP + (mainErrorIntegral + deltaI) * TAIL_PID_KI;
+
+    if(control < PID_MIN) {
+        control = PID_MIN;
+    } else if (control > PID_MAX) {
+        control = PID_MAX;
+    } else {
+        tailErrorIntegral += deltaI;
+    }
+
     return control;
 }
