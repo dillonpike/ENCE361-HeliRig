@@ -12,7 +12,7 @@
 #ifndef PWM_H_
 #define PWM_H_
 
-typedef enum {MAIN, TAIL} rotor; // rotor enumerator
+typedef enum {MAIN = 0, TAIL} rotor; // rotor enumerator
 
 /***********************************************************
  * Initialisation function for PWM Clock.

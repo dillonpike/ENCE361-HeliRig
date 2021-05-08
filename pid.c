@@ -7,8 +7,8 @@
 
 #include "pid.h"
 
-static double mainPidErrorIntegral = 0;
-static double tailPidErrorIntegral = 0;
+static double mainErrorIntegral = 0;
+static double tailErrorIntegral = 0;
 
 double mainPidCompute(double setPoint, double input, double deltaT)
 {
@@ -16,7 +16,7 @@ double mainPidCompute(double setPoint, double input, double deltaT)
     double error = setPoint - input;
     mainErrorIntegral += error * deltaT;
 
-    control = error * MAIN_PID_KP + mainPidErrorIntegral * MAIN_PID_KI;
+    control = error * MAIN_PID_KP + mainErrorIntegral * MAIN_PID_KI;
     return control;
 }
 
@@ -26,6 +26,6 @@ double tailPidCompute(double setPoint, double input, double deltaT)
     double error = setPoint - input;
     tailErrorIntegral += error * deltaT;
 
-    control = error * MAIN_PID_KP + mainPidErrorIntegral * MAIN_PID_KI;
+    control = error * MAIN_PID_KP + tailErrorIntegral * MAIN_PID_KI;
     return control;
 }
