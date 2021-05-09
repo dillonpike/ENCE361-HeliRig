@@ -109,8 +109,8 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
-        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, DISPLAY_DELAY/1000); // TODO allow for variable delays
-        tailDuty = tailPidCompute(desiredYaw, yawDegrees, DISPLAY_DELAY/1000);
+        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, (double)DISPLAY_DELAY/1000); // TODO allow for variable delays
+        tailDuty = tailPidCompute(desiredYaw, yawDegrees, (double)DISPLAY_DELAY/1000);
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
 
