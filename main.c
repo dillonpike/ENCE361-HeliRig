@@ -71,6 +71,9 @@ int main(void)
     OLEDInitialise();
     initGPIO();
     initYawStates();
+    initPWMClock();
+    initialisePWM();
+    initialisePWMTail();
     IntMasterEnable();
     ConfigureUART();
 
@@ -80,8 +83,8 @@ int main(void)
     int16_t altitudePercentage;
 
     initialAlt = altRead(); //takes first reading as initial alt (constant)
-    float tailDuty;
-    float mainDuty;
+    uint8_t tailDuty; // TODO change to appropriate data type
+    uint8_t mainDuty;
 
 
     while (1)
@@ -105,19 +108,19 @@ int main(void)
 
 
 #ifdef DEBUG
-        uartDebugPrint(dispStr);
+        uartDebugPrint(&dispStr[0]);
 #endif
 
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
 
 #ifdef DEBUG
-        uartDebugPrint(dispStr);
+        uartDebugPrint(&dispStr[0]);
 #endif
 
         OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
 
-        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, DISPLAY_DELAY); // TODO allow for variable delays
-        tailDuty = tailPidCompute(desiredYaw, yawDegrees, DISPLAY_DELAY);
+        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, DISPLAY_DELAY/1000); // TODO allow for variable delays
+        tailDuty = tailPidCompute(desiredYaw, yawDegrees, DISPLAY_DELAY/1000);
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
@@ -188,5 +191,5 @@ void uartDebugPrint(char* debugStr)
         uartStr[uartStrI++] = '%'; // Escapes the % sign for printf
     uartStr[uartStrI++] = '\n';
     uartStr[uartStrI] = 0;
-    UARTprintf(uartStr);
+    UARTprintf(&uartStr[0]);
 }
