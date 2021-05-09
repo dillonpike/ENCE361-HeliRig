@@ -7,13 +7,14 @@
 
 #include "pid.h"
 
+
 static double mainErrorIntegral = 0;
 static double tailErrorIntegral = 0;
 
-double mainPidCompute(double setPoint, double input, double deltaT)
+double mainPidCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
 {
     double control;
-    double error = setPoint - input;
+    double error = setAltitude - inputAltitude;
     double deltaI = error * deltaT;
 
     control = error * MAIN_PID_KP + (mainErrorIntegral + deltaI) * MAIN_PID_KI;

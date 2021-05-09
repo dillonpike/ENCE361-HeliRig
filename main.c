@@ -41,7 +41,7 @@
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
 
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
-#define DESIRED_ALT_STEP 15 // increment/decrement step of altitude in percentage
+#define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
