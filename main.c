@@ -35,7 +35,7 @@
 // Constant definitions
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
-#define DEBUG_STR_LEN 20 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
+#define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
@@ -79,6 +79,9 @@ int main(void)
 
     // local variable declarations
     char dispStr[MAX_OLED_STR];
+#ifdef DEBUG
+    char debugStr[DEBUG_STR_LEN];
+#endif
     uint32_t averageADC;
     int16_t altitudePercentage;
 
@@ -106,23 +109,24 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
-
-#ifdef DEBUG
-        uartDebugPrint(&dispStr[0]);
-#endif
-
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
-
-#ifdef DEBUG
-        uartDebugPrint(&dispStr[0]);
-#endif
-
-        OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
-
         mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, DISPLAY_DELAY/1000); // TODO allow for variable delays
         tailDuty = tailPidCompute(desiredYaw, yawDegrees, DISPLAY_DELAY/1000);
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
+
+#ifdef DEBUG
+        usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
+        UARTprintf(debugStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
+        UARTprintf(debugStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
+        UARTprintf(debugStr);
+#endif
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
+
+        OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
+
+
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
@@ -177,19 +181,4 @@ void SysTickIntHandler(void)
         desiredAltitude += DESIRED_ALT_STEP;
     if(checkButton(DOWN) == PUSHED)
         desiredAltitude -= DESIRED_ALT_STEP;  // TODO constrain desired values
-}
-
-void uartDebugPrint(char* debugStr)
-{
-    char uartStr[DEBUG_STR_LEN];
-    uint8_t uartStrI = 0;
-    while(debugStr[uartStrI] != 0) { // check if uartStrI is end of str
-        uartStr[uartStrI] = debugStr[uartStrI];
-        uartStrI++; // appends if uartStrI isn't end of str
-    }
-    if(debugStr[uartStrI-1] == '%')
-        uartStr[uartStrI++] = '%'; // Escapes the % sign for printf
-    uartStr[uartStrI++] = '\n';
-    uartStr[uartStrI] = 0;
-    UARTprintf(&uartStr[0]);
 }
