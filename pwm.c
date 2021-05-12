@@ -81,6 +81,7 @@ initialisePWM (void)
     SysCtlPeripheralEnable(PWM_MAIN_PERIPH_PWM);
     SysCtlPeripheralEnable(PWM_MAIN_PERIPH_GPIO);
 
+    while(!SysCtlPeripheralReady(PWM_MAIN_PERIPH_PWM));
     GPIOPinConfigure(PWM_MAIN_GPIO_CONFIG);
     GPIOPinTypePWM(PWM_MAIN_GPIO_BASE, PWM_MAIN_GPIO_PIN);
 
@@ -92,7 +93,7 @@ initialisePWM (void)
     PWMGenEnable(PWM_MAIN_BASE, PWM_MAIN_GEN);
 
     // Disable the output.  Repeat this call with 'true' to turn O/P on.
-    PWMOutputState(PWM_MAIN_BASE, PWM_MAIN_OUTBIT, false);
+    PWMOutputState(PWM_MAIN_BASE, PWM_MAIN_OUTBIT, true);
 }
 
 /*********************************************************
@@ -117,7 +118,7 @@ initialisePWMTail (void)
     PWMGenEnable(PWM_TAIL_BASE, PWM_TAIL_GEN);
 
     // Disable the output.  Repeat this call with 'true' to turn O/P on.
-    PWMOutputState(PWM_TAIL_BASE, PWM_TAIL_OUTBIT, false);
+    PWMOutputState(PWM_TAIL_BASE, PWM_TAIL_OUTBIT, true);
 }
 
 /********************************************************
@@ -125,19 +126,19 @@ initialisePWMTail (void)
  * Modified to also set duty cycle of M1PWM5.
  ********************************************************/
 void
-setPWMDuty (uint32_t ui32Duty, rotor chosenRotor)
+setPWMDuty (double duty, rotor chosenRotor)
 {
     // Calculate the PWM period corresponding to the freq.
     uint32_t ui32Period =
         SysCtlClockGet() / PWM_DIVIDER / PWM_FIXED_HZ;
 
     if (chosenRotor == MAIN) {
-    PWMGenPeriodSet(PWM_MAIN_BASE, PWM_MAIN_GEN, ui32Period);
-    PWMPulseWidthSet(PWM_MAIN_BASE, PWM_MAIN_OUTNUM,
-        ui32Period * ui32Duty / 100);
+        PWMGenPeriodSet(PWM_MAIN_BASE, PWM_MAIN_GEN, ui32Period);
+        PWMPulseWidthSet(PWM_MAIN_BASE, PWM_MAIN_OUTNUM,
+                         (uint32_t)(ui32Period * duty / 100));
     } else {
         PWMGenPeriodSet(PWM_TAIL_BASE, PWM_TAIL_GEN, ui32Period);
         PWMPulseWidthSet(PWM_TAIL_BASE, PWM_TAIL_OUTNUM,
-            ui32Period * ui32Duty / 100);
+                         (uint32_t)(ui32Period * duty / 100));
     }
 }

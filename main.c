@@ -29,14 +29,19 @@
 #include "utils/uartstdio.h"
 #include "alt.h"
 #include "yaw.h"
+#include "pid.h"
+#include "pwm.h"
 
 // Constant definitions
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
-#define DEBUG_STR_LEN 20 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
+#define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BLANK_OLED_STR "                " // blank string for OLED display
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
+
+#define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
+#define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
@@ -52,6 +57,8 @@ void uartDebugPrint(char* debugStr);
 //main.c variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static uint32_t clockRate;
+static uint8_t desiredAltitude = 0;
+static int16_t desiredYaw = 0;
 
 /** Main function of the MCU.  */
 int main(void)
@@ -64,20 +71,30 @@ int main(void)
     OLEDInitialise();
     initGPIO();
     initYawStates();
+    initPWMClock();
+    initialisePWM();
+    initialisePWMTail();
     IntMasterEnable();
     ConfigureUART();
 
     // local variable declarations
     char dispStr[MAX_OLED_STR];
+#ifdef DEBUG
+    char debugStr[DEBUG_STR_LEN];
+#endif
     uint32_t averageADC;
     int16_t altitudePercentage;
 
     initialAlt = altRead(); //takes first reading as initial alt (constant)
+    uint8_t tailDuty; // TODO change to appropriate data type
+    uint8_t mainDuty;
+
 
     while (1)
     {
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
+        int16_t yawDegrees = getYawDegrees();
         // Sets different formatting of text depending on display mode of OLED
         switch(curAltDispMode) {
             case ALT_MODE_PERCENTAGE:
@@ -92,18 +109,24 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
+        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, (double)DISPLAY_DELAY/1000); // TODO allow for variable delays
+        tailDuty = tailPidCompute(desiredYaw, yawDegrees, (double)DISPLAY_DELAY/1000);
+        setPWMDuty(mainDuty, MAIN);
+        setPWMDuty(tailDuty, TAIL);
 
 #ifdef DEBUG
-        uartDebugPrint(dispStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
+        UARTprintf(debugStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
+        UARTprintf(debugStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
+        UARTprintf(debugStr);
 #endif
-
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", getYawDegrees());
-
-#ifdef DEBUG
-        uartDebugPrint(dispStr);
-#endif
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
 
         OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
+
+
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
@@ -127,7 +150,7 @@ void ConfigureUART(void)
     UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
 
     // Initialize the UART for console I/O.
-    UARTStdioConfig(0, 115200, 16000000);
+    UARTStdioConfig(0, 9600, 16000000);
 }
 
 
@@ -150,23 +173,12 @@ void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
     updateButtons();
-    if((checkButton(LEFT) == PUSHED))
-        initialAlt = altRead(); // takes a new value for initialAlt
+    if(checkButton(LEFT) == PUSHED)
+        desiredYaw -= DESIRED_YAW_STEP;
+    if(checkButton(RIGHT) == PUSHED)
+        desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED)
-        curAltDispMode = (curAltDispMode == ALT_MODE_OFF) ? ALT_MODE_PERCENTAGE : (curAltDispMode + 1);
-}
-
-void uartDebugPrint(char* debugStr)
-{
-    char uartStr[DEBUG_STR_LEN];
-    uint8_t uartStrI = 0;
-    while(debugStr[uartStrI] != 0) { // check if uartStrI is end of str
-        uartStr[uartStrI] = debugStr[uartStrI];
-        uartStrI++; // appends if uartStrI isn't end of str
-    }
-    if(debugStr[uartStrI-1] == '%')
-        uartStr[uartStrI++] = '%'; // Escapes the % sign for printf
-    uartStr[uartStrI++] = '\n';
-    uartStr[uartStrI] = 0;
-    UARTprintf(uartStr);
+        desiredAltitude += DESIRED_ALT_STEP;
+    if(checkButton(DOWN) == PUSHED)
+        desiredAltitude -= DESIRED_ALT_STEP;  // TODO constrain desired values
 }
