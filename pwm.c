@@ -126,7 +126,7 @@ initialisePWMTail (void)
  * Modified to also set duty cycle of M1PWM5.
  ********************************************************/
 void
-setPWMDuty (uint32_t ui32Duty, rotor chosenRotor)
+setPWMDuty (double duty, rotor chosenRotor)
 {
     // Calculate the PWM period corresponding to the freq.
     uint32_t ui32Period =
@@ -135,10 +135,10 @@ setPWMDuty (uint32_t ui32Duty, rotor chosenRotor)
     if (chosenRotor == MAIN) {
         PWMGenPeriodSet(PWM_MAIN_BASE, PWM_MAIN_GEN, ui32Period);
         PWMPulseWidthSet(PWM_MAIN_BASE, PWM_MAIN_OUTNUM,
-        ui32Period * ui32Duty / 100);
+                         (uint32_t)(ui32Period * duty / 100));
     } else {
         PWMGenPeriodSet(PWM_TAIL_BASE, PWM_TAIL_GEN, ui32Period);
         PWMPulseWidthSet(PWM_TAIL_BASE, PWM_TAIL_OUTNUM,
-            ui32Period * ui32Duty / 100);
+                         (uint32_t)(ui32Period * duty / 100));
     }
 }

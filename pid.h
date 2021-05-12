@@ -8,11 +8,13 @@
 #ifndef PID_H_
 #define PID_H_
 
-#define MAIN_PID_KP 1
-#define MAIN_PID_KI 1
+#include <stdint.h>
 
-#define TAIL_PID_KP 1
-#define TAIL_PID_KI 1
+#define MAIN_PID_KP 0.6
+#define MAIN_PID_KI 0.4
+
+#define TAIL_PID_KP 0.43
+#define TAIL_PID_KI 0.25
 
 #define PID_MAX 98
 #define PID_MIN 2
@@ -20,7 +22,7 @@
 void initMainPid(void);
 void initTailPid(void);
 
-double mainPidCompute(double setPoint, double input, double deltaT);
+double mainPidCompute(uint8_t setPoint, int16_t input, double deltaT);
 double tailPidCompute(double setPoint, double input, double deltaT);
 
 #endif /* PID_H_ */
