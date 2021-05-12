@@ -36,7 +36,7 @@ double tailPidCompute(double setPoint, double input, double deltaT)
     double error = setPoint - input;
     double deltaI = error * deltaT; // change in integral since last computation
 
-    control = error * TAIL_PID_KP + (mainErrorIntegral + deltaI) * TAIL_PID_KI;
+    control = error * TAIL_PID_KP + (tailErrorIntegral + deltaI) * TAIL_PID_KI;
 
     if(control < PID_MIN) {
         control = PID_MIN;
