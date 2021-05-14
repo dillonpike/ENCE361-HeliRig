@@ -6,6 +6,10 @@
 
 // Macro function definition
 #define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
+#define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
+#define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
+#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
+
 
 // standard library includes
 #include <stdio.h>
@@ -59,6 +63,7 @@ static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
 static int16_t desiredYaw = 0;
+static volatile uint8_t dTCounter = 0;
 
 /** Main function of the MCU.  */
 int main(void)
@@ -86,9 +91,8 @@ int main(void)
     int16_t altitudePercentage;
 
     initialAlt = altRead(); //takes first reading as initial alt (constant)
-    uint8_t tailDuty; // TODO change to appropriate data type
+    uint8_t tailDuty;
     uint8_t mainDuty;
-
 
     while (1)
     {
@@ -109,8 +113,9 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
-        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, (double)DISPLAY_DELAY/1000); // TODO allow for variable delays
-        tailDuty = tailPidCompute(desiredYaw, yawDegrees, (double)DISPLAY_DELAY/1000);
+        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+        tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+        dTCounter = 0; // Reset dTCounter
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
 
@@ -123,8 +128,11 @@ int main(void)
         UARTprintf(debugStr);
 #endif
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
-
-        OLEDStringDraw(dispStr, 0, 1); //Position of yaw disp;
+        OLEDStringDraw(dispStr, 0, 1); //Position of yaw display
+        usnprintf(dispStr, DEBUG_STR_LEN, "Main: %2d", mainDuty);
+        OLEDStringDraw(dispStr, 0, 2); //Position of main duty display
+        usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
+        OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
 
 
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
@@ -178,7 +186,8 @@ void SysTickIntHandler(void)
     if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED)
-        desiredAltitude += DESIRED_ALT_STEP;
+        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
     if(checkButton(DOWN) == PUSHED)
-        desiredAltitude -= DESIRED_ALT_STEP;  // TODO constrain desired values
+        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+    dTCounter++;
 }
