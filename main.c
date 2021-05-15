@@ -117,9 +117,16 @@ int main(void)
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
+        if (curHeliMode == LAUNCHING) {
+            desiredYaw++;
+            if (desiredYaw > 360) {
+                desiredYaw = 0;
+            }
+        }
         if (refYawFlag) {
             curHeliMode = FLYING;
             refYaw = getRefYaw();
+            desiredYaw = refYaw;
         }
 
         mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
@@ -134,6 +141,8 @@ int main(void)
         usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
         UARTprintf(debugStr);
         usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
+        UARTprintf(debugStr);
+        usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %1d\n", curHeliMode);
         UARTprintf(debugStr);
 #endif
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
@@ -192,11 +201,15 @@ void SysTickIntHandler(void)
     updateButtons();
     if(checkButton(LEFT) == PUSHED)
         desiredYaw -= DESIRED_YAW_STEP;
-    if(checkButton(RIGHT) == PUSHED || curHeliMode == LAUNCHING)
+    if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED)
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
     if(checkButton(DOWN) == PUSHED)
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+    if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
+        curHeliMode = LAUNCHING;
+        enableRefYawInt();
+    }
     dTCounter++;
 }
