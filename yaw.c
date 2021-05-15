@@ -17,11 +17,15 @@
 // global yaw counter variable that tracks how many disc slots the reader is away from the origin
 static volatile int16_t yawCounter = 0;
 
+// global variable to store the reference yaw
+static volatile int16_t refYaw = 0;
+volatile bool refYawFlag = false;
+
 // global variables that track the state of channel A and B
 static volatile bool aState;
 static volatile bool bState;
 
-/** Enables GPIO B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
+/** Enables GPIO port B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
 void initGPIO(void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
@@ -32,6 +36,18 @@ void initGPIO(void)
     GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
     GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
     GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
+}
+
+/** Enables GPIO port C and registers refYawIntHandler to run when the value on pin 4 is changes to low.  */
+void initRefGPIO(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+
+    GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_4);
+    GPIOPadConfigSet(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_FALLING_EDGE);
+    GPIOIntRegister(GPIO_PORTC_BASE, refYawIntHandler);
 }
 
 /** Assigns the initial states of channel A and B to aState and bState.  */
@@ -67,6 +83,15 @@ void GPIOBIntHandler(void)
     yawConstrain();
 }
 
+/** Sets the current yaw to the reference yaw, then disables the interrupt.  */
+void refYawIntHandler(void)
+{
+    refYaw = getYawDegrees();
+    GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
+    refYawFlag = true;
+    GPIOIntDisable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
+}
+
 /** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
 void yawConstrain(void)
 {
@@ -82,4 +107,16 @@ void yawConstrain(void)
 int16_t getYawDegrees(void)
 {
     return yawCounter * DEGREES_PER_REV / (4 * DISC_SLOTS);
+}
+
+/** Returns the reference yaw.
+    @return reference yaw.  */
+int16_t getRefYaw(void) {
+    return refYaw;
+}
+
+/** Enables PC4 to generate interrupts.  */
+void enableRefYawInt(void)
+{
+    GPIOIntEnable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
 }
