@@ -51,6 +51,7 @@
 #define DEBUG // Debug mode. Displays useful info via serial
 
 enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
+enum heliMode {LANDED, LAUNCHING, FLYING, LANDING};
 
 // function prototypes
 void initClock(void);
@@ -60,6 +61,7 @@ void uartDebugPrint(char* debugStr);
 
 //main.c variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
+static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
 static int16_t desiredYaw = 0;
@@ -94,6 +96,8 @@ int main(void)
     uint8_t tailDuty;
     uint8_t mainDuty;
 
+    int16_t refYaw;
+
     while (1)
     {
         averageADC = altRead();
@@ -112,6 +116,11 @@ int main(void)
                 break;
         }
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
+
+        if (refYawFlag) {
+            curHeliMode = FLYING;
+            refYaw = getRefYaw();
+        }
 
         mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
         tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
@@ -140,6 +149,8 @@ int main(void)
 }
 
 
+
+
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
 void ConfigureUART(void)
 {
@@ -161,8 +172,6 @@ void ConfigureUART(void)
     UARTStdioConfig(0, 9600, 16000000);
 }
 
-
-
 /* Initialisation of the clock and systick. */
 void initClock(void)
 {
@@ -183,7 +192,7 @@ void SysTickIntHandler(void)
     updateButtons();
     if(checkButton(LEFT) == PUSHED)
         desiredYaw -= DESIRED_YAW_STEP;
-    if(checkButton(RIGHT) == PUSHED)
+    if(checkButton(RIGHT) == PUSHED || curHeliMode == LAUNCHING)
         desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED)
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
