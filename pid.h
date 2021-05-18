@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 
-#define MAIN_PID_KP 0.6
-#define MAIN_PID_KI 0.4
+#define MAIN_PID_KP 0.7
+#define MAIN_PID_KI 0.32
 
 #define TAIL_PID_KP 0.43
 #define TAIL_PID_KI 0.25

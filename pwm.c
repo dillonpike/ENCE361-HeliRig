@@ -28,7 +28,7 @@
  **********************************************************/
 
 // PWM configuration
-#define PWM_FIXED_HZ       250
+#define PWM_FIXED_HZ       200
 #define PWM_START_DUTY     60
 #define PWM_TAIL_DUTY      10
 #define PWM_DUTY_STEP      5

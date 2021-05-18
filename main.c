@@ -50,17 +50,17 @@
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
 
-enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
+
 enum heliMode {LANDED, LAUNCHING, FLYING, LANDING};
 
 // function prototypes
 void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
-void uartDebugPrint(char* debugStr);
+
 
 //main.c variable declarations
-static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
+//static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
@@ -96,38 +96,11 @@ int main(void)
     uint8_t tailDuty;
     uint8_t mainDuty;
 
-    int16_t refYaw;
-
     while (1)
     {
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
         int16_t yawDegrees = getYawDegrees();
-        // Sets different formatting of text depending on display mode of OLED
-        switch(curAltDispMode) {
-            case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
-                break;
-            case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
-                break;
-            case ALT_MODE_OFF:
-                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
-                break;
-        }
-        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
-
-        if (curHeliMode == LAUNCHING) {
-            desiredYaw++;
-            if (desiredYaw > 360) {
-                desiredYaw = 0;
-            }
-        }
-        if (refYawFlag) {
-            curHeliMode = FLYING;
-            refYaw = getRefYaw();
-            desiredYaw = refYaw;
-        }
 
         mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
         tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
@@ -152,13 +125,27 @@ int main(void)
         usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
         OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
 
-
+        switch(curHeliMode) {
+                case LANDED:
+                    usnprintf(dispStr, MAX_OLED_STR, "Mode: landed");
+                    OLEDStringDraw(dispStr, 0, 4);
+                    break;
+                case LAUNCHING:
+                    usnprintf(dispStr, MAX_OLED_STR, "Mode: launching");
+                    OLEDStringDraw(dispStr, 0, 4);
+                    break;
+                case FLYING:
+                    usnprintf(dispStr, MAX_OLED_STR, "Mode: flying");
+                    OLEDStringDraw(dispStr, 0, 4);
+                    break;
+                case LANDING:
+                    usnprintf(dispStr, MAX_OLED_STR, "Mode: landing");
+                    OLEDStringDraw(dispStr, 0, 4);
+                    break;
+        }
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
-
-
-
 
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
 void ConfigureUART(void)
@@ -203,10 +190,14 @@ void SysTickIntHandler(void)
         desiredYaw -= DESIRED_YAW_STEP;
     if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
-    if(checkButton(UP) == PUSHED)
+    if(checkButton(UP) == PUSHED) {
+        curHeliMode = FLYING;
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
-    if(checkButton(DOWN) == PUSHED)
+    }
+    if(checkButton(DOWN) == PUSHED) {
+        curHeliMode = (desiredAltitude < 10) ? LANDING : FLYING;
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+    }
     if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
         curHeliMode = LAUNCHING;
         enableRefYawInt();
