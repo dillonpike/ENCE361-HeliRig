@@ -37,7 +37,7 @@
 #include "pwm.h"
 
 // Constant definitions
-#define SYSTICK_RATE_HZ 500 // rate of the systick clock
+#define SYSTICK_RATE_HZ 200 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
 #define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BLANK_OLED_STR "                " // blank string for OLED display
@@ -59,6 +59,8 @@ void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
 void checkFlags(void);
+void displayInfoOLED(int16_t altitudePercentage, uint32_t averageADC, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
+void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
 //main.c variable declarations
 static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
@@ -87,10 +89,6 @@ int main(void)
     ConfigureUART();
 
     // local variable declarations
-    char dispStr[MAX_OLED_STR];
-#ifdef DEBUG
-    char debugStr[DEBUG_STR_LEN];
-#endif
     uint32_t averageADC;
     int16_t altitudePercentage;
 
@@ -103,20 +101,6 @@ int main(void)
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
         int16_t yawDegrees = getYawDegrees();
-
-        // Sets different formatting of text depending on display mode of OLED
-        switch(curAltDispMode) {
-            case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%3d]\n", altitudePercentage, desiredAltitude);
-                break;
-            case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
-                break;
-            case ALT_MODE_OFF:
-                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
-                break;
-        }
-        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
         if (curHeliMode == LAUNCHING) {
             mainDuty = 10;
@@ -139,26 +123,51 @@ int main(void)
         setPWMDuty(tailDuty, TAIL);
 
 #ifdef DEBUG
-        usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
-        UARTprintf(debugStr);
+        displayInfoSerial(altitudePercentage, yawDegrees, tailDuty, mainDuty);
 #endif
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
-        OLEDStringDraw(dispStr, 0, 1); // Position of yaw display
-        usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
-        OLEDStringDraw(dispStr, 0, 2); // Duty values display
-        usnprintf(dispStr, MAX_OLED_STR, "MODE: %9s", heliModeStr[curHeliMode]);
-        OLEDStringDraw(dispStr, 0, 3); // Heli mode display
-
+        displayInfoOLED(altitudePercentage, averageADC, yawDegrees, tailDuty, mainDuty);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
 
+/* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
+void displayInfoOLED(int16_t altitudePercentage, uint32_t averageADC, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+    char dispStr[MAX_OLED_STR];
+
+    // Sets different formatting of text depending on display mode of OLED
+    switch(curAltDispMode) {
+        case ALT_MODE_PERCENTAGE:
+            usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%3d]\n", altitudePercentage, desiredAltitude);
+            break;
+        case ALT_MODE_RAW_ADC:
+            usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
+            break;
+        case ALT_MODE_OFF:
+            usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
+            break;
+    }
+    OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
+
+    usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
+    OLEDStringDraw(dispStr, 0, 1); // Position of yaw display
+    usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
+    OLEDStringDraw(dispStr, 0, 2); // Duty values display
+    usnprintf(dispStr, MAX_OLED_STR, "MODE: %9s", heliModeStr[curHeliMode]);
+    OLEDStringDraw(dispStr, 0, 3); // Heli mode display
+}
+
+/* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
+void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+    char debugStr[DEBUG_STR_LEN];
+    usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
+    UARTprintf(debugStr);
+    usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
+    UARTprintf(debugStr);
+    usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
+    UARTprintf(debugStr);
+    usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
+    UARTprintf(debugStr);
+}
 void checkFlags(void) {
     if (refYawFlag) {
         curHeliMode = FLYING;
@@ -211,11 +220,9 @@ void SysTickIntHandler(void)
     if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED) {
-        //curHeliMode = FLYING;
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
     }
     if(checkButton(DOWN) == PUSHED) {
-        curHeliMode = (desiredAltitude < 10) ? LANDING : FLYING;
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
     }
     if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
@@ -224,6 +231,9 @@ void SysTickIntHandler(void)
     }
     if (checkButton(SWITCH1) == RELEASED && curHeliMode == FLYING) {
         curHeliMode = LANDING;
+    }
+    if (checkButton(RESET) == PUSHED) {
+        SysCtlReset();
     }
     dTCounter++;
 }

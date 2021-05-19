@@ -85,11 +85,19 @@ initButtons (void)
 
 
 
-    //SW1 (active HIGH)
+    // SWITCH1 (active HIGH)
     SysCtlPeripheralEnable (SWITCH1_BUT_PERIPH);
     GPIOPinTypeGPIOInput (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN);
     GPIOPadConfigSet (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN, GPIO_STRENGTH_2MA,
                       GPIO_PIN_TYPE_STD_WPD);
+    but_normal[SWITCH1] = SWITCH1_BUT_NORMAL;
+
+    // RESET button (active LOW)
+    SysCtlPeripheralEnable (RESET_BUT_PERIPH);
+    GPIOPinTypeGPIOInput (RESET_BUT_PORT_BASE, RESET_BUT_PIN);
+    GPIOPadConfigSet (RESET_BUT_PORT_BASE, RESET_BUT_PIN, GPIO_STRENGTH_2MA,
+       GPIO_PIN_TYPE_STD_WPD);
+    but_normal[RESET] = RESET_BUT_NORMAL;
 
 
 
@@ -122,6 +130,8 @@ updateButtons (void)
     but_value[LEFT] = (GPIOPinRead (LEFT_BUT_PORT_BASE, LEFT_BUT_PIN) == LEFT_BUT_PIN);
     but_value[RIGHT] = (GPIOPinRead (RIGHT_BUT_PORT_BASE, RIGHT_BUT_PIN) == RIGHT_BUT_PIN);
 	but_value[SWITCH1] = (GPIOPinRead (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN) == SWITCH1_BUT_PIN);
+	but_value[RESET] = (GPIOPinRead (RESET_BUT_PORT_BASE, RESET_BUT_PIN) == RESET_BUT_PIN);
+
     // Iterate through the buttons, updating button variables as required
 	for (i = 0; i < NUM_BUTS; i++)
 	{
