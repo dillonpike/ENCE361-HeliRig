@@ -5,7 +5,6 @@
 */
 
 // Macro function definition
-#define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
 #define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
 #define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
 #define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
@@ -35,14 +34,13 @@
 #include "yaw.h"
 #include "pid.h"
 #include "pwm.h"
+#include "pacer.h"
 
 // Constant definitions
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
 #define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
-#define BLANK_OLED_STR "                " // blank string for OLED display
-#define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
-#define DISPLAY_DELAY 100 // OLED display refresh time (ms)
+#define BACKGROUND_LOOP_FREQ_HZ 10
 
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
@@ -60,7 +58,6 @@ void ConfigureUART(void);
 void uartDebugPrint(char* debugStr);
 
 //main.c variable declarations
-static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
@@ -83,6 +80,7 @@ int main(void)
     initialisePWMTail();
     IntMasterEnable();
     ConfigureUART();
+    initPacer(BACKGROUND_LOOP_FREQ_HZ);
 
     // local variable declarations
     char dispStr[MAX_OLED_STR];
@@ -103,19 +101,7 @@ int main(void)
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
         int16_t yawDegrees = getYawDegrees();
-        // Sets different formatting of text depending on display mode of OLED
-        switch(curAltDispMode) {
-            case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
-                break;
-            case ALT_MODE_RAW_ADC:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
-                break;
-            case ALT_MODE_OFF:
-                usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
-                break;
-        }
-        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
+
 
         if (curHeliMode == LAUNCHING) {
             desiredYaw++;
@@ -145,6 +131,8 @@ int main(void)
         usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %1d\n", curHeliMode);
         UARTprintf(debugStr);
 #endif
+        usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
+        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
         usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
         OLEDStringDraw(dispStr, 0, 1); //Position of yaw display
         usnprintf(dispStr, DEBUG_STR_LEN, "Main: %2d", mainDuty);
@@ -152,8 +140,7 @@ int main(void)
         usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
         OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
 
-
-        SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
+        pacerWait();
     }
 }
 
