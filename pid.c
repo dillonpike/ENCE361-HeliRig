@@ -34,6 +34,16 @@ double tailPidCompute(double setPoint, double input, double deltaT)
 {
     double control;
     double error = setPoint - input;
+
+    // Calibrates error to the shortest signed difference between input and setPoint
+    // since input and setPoint are constrained between -179 and 180
+    // and transitions from -179 to 180 when decreasing, and vice versa
+    if (error < 180) {
+        error += 360;
+    } else if (error > 180) {
+        error -= 360;
+    }
+
     double deltaI = error * deltaT; // change in integral since last computation
 
     control = error * TAIL_PID_KP + (tailErrorIntegral + deltaI) * TAIL_PID_KI;

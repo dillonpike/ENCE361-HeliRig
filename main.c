@@ -168,6 +168,8 @@ void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t t
     usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
     UARTprintf(debugStr);
 }
+
+/* Checks and acts on flags that can be changed by interrupt handlers.  */
 void checkFlags(void) {
     if (refYawFlag) {
         curHeliMode = FLYING;
@@ -176,7 +178,7 @@ void checkFlags(void) {
     }
 }
 
-/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
+/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.  */
 void ConfigureUART(void)
 {
     // Enable the GPIO Peripheral used by the UART.
@@ -197,7 +199,7 @@ void ConfigureUART(void)
     UARTStdioConfig(0, 9600, 16000000);
 }
 
-/* Initialisation of the clock and systick. */
+/* Initialisation of the clock and systick.  */
 void initClock(void)
 {
     // Set the clock rate to 20 MHz
@@ -217,8 +219,14 @@ void SysTickIntHandler(void)
     updateButtons();
     if(checkButton(LEFT) == PUSHED)
         desiredYaw -= DESIRED_YAW_STEP;
+        if (desiredYaw > 180) {
+            desiredYaw -= 360;
+        }
     if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
+    if (desiredYaw < -179) {
+        desiredYaw += 360;
+    }
     if(checkButton(UP) == PUSHED) {
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
     }
