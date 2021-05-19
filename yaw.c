@@ -34,8 +34,8 @@ void initGPIO(void)
     GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
     GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
-    GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
     GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
+    GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
 }
 
 /** Enables GPIO port C and registers refYawIntHandler to run when the value on pin 4 is changes to low.  */
@@ -46,7 +46,7 @@ void initRefGPIO(void)
     GPIOPinTypeGPIOInput(GPIO_PORTC_BASE, GPIO_PIN_4);
     GPIOPadConfigSet(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
-    GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_FALLING_EDGE);
+    GPIOIntTypeSet(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_LOW_LEVEL);
     GPIOIntRegister(GPIO_PORTC_BASE, refYawIntHandler);
 }
 

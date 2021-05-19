@@ -96,7 +96,7 @@ int main(void)
     uint8_t tailDuty = 2;
     uint8_t mainDuty = 2;
 
-    int16_t refYaw;
+    int16_t refYaw = 0;
 
     while (1)
     {
@@ -107,7 +107,7 @@ int main(void)
         // Sets different formatting of text depending on display mode of OLED
         switch(curAltDispMode) {
             case ALT_MODE_PERCENTAGE:
-                usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
+                usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%3d]\n", altitudePercentage, desiredAltitude);
                 break;
             case ALT_MODE_RAW_ADC:
                 usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
@@ -119,11 +119,11 @@ int main(void)
         OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
         if (curHeliMode == LAUNCHING) {
-            if (yawDegrees == desiredYaw) {
-                desiredYaw += DESIRED_YAW_STEP;
-            }
-            if (desiredYaw > 360) {
-                //desiredYaw = 0;
+            tailDuty = 45;
+        } else if (curHeliMode == LANDING) {
+            desiredYaw = refYaw;
+            if (yawDegrees == refYaw) {
+                desiredAltitude = 0;
             }
         }
         if (refYawFlag) {
@@ -132,7 +132,7 @@ int main(void)
             desiredYaw = refYaw;
         }
 
-        if (curHeliMode != LANDED) {
+        if (curHeliMode != LANDED && curHeliMode != LAUNCHING) {
             mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
             tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
         }
@@ -150,31 +150,32 @@ int main(void)
         usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %1d\n", curHeliMode);
         UARTprintf(debugStr);
 #endif
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
+        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
         OLEDStringDraw(dispStr, 0, 1); //Position of yaw display
-        usnprintf(dispStr, DEBUG_STR_LEN, "Main: %4d", desiredYaw);
+        usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
         OLEDStringDraw(dispStr, 0, 2); //Position of main duty display
-        usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
-        OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
-        /*
+        //usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
+        //OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
+
         switch(curHeliMode) {
                 case LANDED:
-                    usnprintf(dispStr, MAX_OLED_STR, "Mode: landed");
-                    OLEDStringDraw(dispStr, 0, 4);
+                    usnprintf(dispStr, MAX_OLED_STR, "MODE: LANDED");
+                    OLEDStringDraw(dispStr, 0, 3);
                     break;
                 case LAUNCHING:
-                    usnprintf(dispStr, MAX_OLED_STR, "Mode: launching");
-                    OLEDStringDraw(dispStr, 0, 4);
+                    usnprintf(dispStr, MAX_OLED_STR, "MODE: LAUNCHING");
+                    OLEDStringDraw(dispStr, 0, 3);
                     break;
                 case FLYING:
-                    usnprintf(dispStr, MAX_OLED_STR, "Mode: flying");
-                    OLEDStringDraw(dispStr, 0, 4);
+                    usnprintf(dispStr, MAX_OLED_STR, "MODE: FLYING");
+                    OLEDStringDraw(dispStr, 0, 3);
                     break;
                 case LANDING:
-                    usnprintf(dispStr, MAX_OLED_STR, "Mode: landing");
-                    OLEDStringDraw(dispStr, 0, 4);
+                    usnprintf(dispStr, MAX_OLED_STR, "MODE: LANDING");
+                    OLEDStringDraw(dispStr, 0, 3);
                     break;
-        }*/
+        }
+
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
@@ -223,7 +224,7 @@ void SysTickIntHandler(void)
     if(checkButton(RIGHT) == PUSHED)
         desiredYaw += DESIRED_YAW_STEP;
     if(checkButton(UP) == PUSHED) {
-        curHeliMode = FLYING;
+        //curHeliMode = FLYING;
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
     }
     if(checkButton(DOWN) == PUSHED) {
@@ -233,8 +234,10 @@ void SysTickIntHandler(void)
     if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
         curHeliMode = LAUNCHING;
         desiredAltitude = 1;
-        desiredYaw = DESIRED_YAW_STEP;
         enableRefYawInt();
+    }
+    if (checkButton(SWITCH1) == RELEASED && curHeliMode == FLYING) {
+        curHeliMode = LANDING;
     }
     dTCounter++;
 }
