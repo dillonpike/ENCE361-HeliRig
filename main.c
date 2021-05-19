@@ -82,6 +82,7 @@ int main(void)
     OLEDInitialise();
     initGPIO();
     initYawStates();
+    initRefGPIO();
     initPWMClock();
     initialisePWM();
     initialisePWMTail();
@@ -104,7 +105,7 @@ int main(void)
 
         if (curHeliMode == LAUNCHING) {
             mainDuty = 10;
-            tailDuty = 25;
+            tailDuty = 35;
         } else if (curHeliMode == LANDING) {
             desiredYaw = refYaw;
             if (yawDegrees == refYaw) {
@@ -112,7 +113,11 @@ int main(void)
             }
         }
 
-        checkFlags();
+        if(refYawFlag) {
+            yawDegrees = 0;
+            desiredYaw = 0;
+            curHeliMode = FLYING;
+        }
 
         if (curHeliMode != LANDED && curHeliMode != LAUNCHING) {
             mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
@@ -169,14 +174,6 @@ void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t t
     UARTprintf(debugStr);
 }
 
-/* Checks and acts on flags that can be changed by interrupt handlers.  */
-void checkFlags(void) {
-    if (refYawFlag) {
-        curHeliMode = FLYING;
-        refYaw = getRefYaw();
-        desiredYaw = refYaw;
-    }
-}
 
 /* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.  */
 void ConfigureUART(void)
