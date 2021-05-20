@@ -44,8 +44,11 @@
 #define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
 #define DISPLAY_DELAY 100 // OLED display refresh time (ms)
 
+#define HOVER_DESIRED_ALT 10 // desired altitude when finding hover point
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
+
+#define TAIL_DUTY_REF 45 // tail rotor duty cycle for finding reference point
 
 #define BUTTON_POLLING_RATE_HZ 100 // rate of button polling in Hz
 
@@ -97,8 +100,10 @@ int main(void)
     int16_t altitudePercentage;
 
     initialAlt = altRead(); //takes first reading as initial alt (constant)
-    uint8_t tailDuty;
-    uint8_t mainDuty;
+    uint8_t tailDuty = 0;
+    uint8_t mainDuty = 0;
+
+    bool isHovering = false;
 
     while (1)
     {
@@ -107,7 +112,10 @@ int main(void)
         int16_t yawDegrees = getYawDegrees();
 
         if ((curHeliMode == LAUNCHING)) {
-            tailDuty = 30;
+            if (!isHovering && altitudePercentage > 0) {
+                isHovering = true;
+                tailDuty = TAIL_DUTY_REF;
+            }
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
                 desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - 5);
@@ -115,6 +123,7 @@ int main(void)
                     curHeliMode = LANDED;
                     mainDuty = 0;
                     tailDuty = 0;
+                    isHovering = false;
                 }
             }
         }
@@ -128,9 +137,14 @@ int main(void)
         }
 
         if (curHeliMode != LANDED) {
-            mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
             if(curHeliMode != LAUNCHING) {
+                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
                 tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            } else if (!isHovering) {
+                mainDuty = mainPidCompute(HOVER_DESIRED_ALT, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            } else {
+                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
             }
         }
         dTCounter = 0; // Reset dTCounter
@@ -237,7 +251,6 @@ void SysTickIntHandler(void)
             if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
                 if (canLaunch) {
                     curHeliMode = LAUNCHING;
-                    desiredAltitude = 2;
                     enableRefYawInt();
                 }
 
