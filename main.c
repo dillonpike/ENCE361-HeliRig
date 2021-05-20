@@ -70,6 +70,7 @@ static uint8_t desiredAltitude = 0;
 static int16_t desiredYaw = 0;
 static int16_t refYaw = 0;
 static volatile uint8_t dTCounter = 0;
+static bool canLaunch = false;
 
 /** Main function of the MCU.  */
 int main(void)
@@ -105,12 +106,15 @@ int main(void)
         int16_t yawDegrees = getYawDegrees();
 
         if (curHeliMode == LAUNCHING) {
-            mainDuty = 25;
             tailDuty = 35;
         } else if (curHeliMode == LANDING) {
-            desiredYaw = refYaw;
-            if (yawDegrees == refYaw) {
-                desiredAltitude = 0;
+            if (yawDegrees == desiredYaw) {
+                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - 5);
+                if (altitudePercentage == 0) {
+                    curHeliMode = LANDED;
+                    mainDuty = 0;
+                    tailDuty = 0;
+                }
             }
         }
 
@@ -122,9 +126,11 @@ int main(void)
             refYawFlag = false;
         }
 
-        if (curHeliMode != LANDED && curHeliMode != LAUNCHING) {
+        if (curHeliMode != LANDED) {
             mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
-            tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            if (curHeliMode != LAUNCHING) {
+                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            }
         }
         dTCounter = 0; // Reset dTCounter
         setPWMDuty(mainDuty, MAIN);
@@ -232,12 +238,20 @@ void SysTickIntHandler(void)
     if(checkButton(DOWN) == PUSHED) {
         desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
     }
-    if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
-        curHeliMode = LAUNCHING;
-        enableRefYawInt();
-    }
-    if (checkButton(SWITCH1) == RELEASED && curHeliMode == FLYING) {
-        curHeliMode = LANDING;
+    uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
+    if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
+        if(canLaunch) {
+            curHeliMode = LAUNCHING;
+            desiredAltitude = 5;
+            enableRefYawInt();
+        }
+
+    } else if (sw1State == 0) {
+        canLaunch = true;
+        if(curHeliMode == FLYING) {
+            curHeliMode = LANDING;
+            desiredYaw = refYaw;
+        }
     }
     if (checkButton(RESET) == PUSHED) {
         SysCtlReset();
