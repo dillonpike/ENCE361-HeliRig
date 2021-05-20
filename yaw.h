@@ -13,11 +13,11 @@
 
 extern volatile bool refYawFlag;
 
-/** Enables GPIO port B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
-void initGPIO(void);
+/** Enables GPIO port B and initialises YawIntHandler to run when the values on pins 0 or 1 change.  */
+void initYawInt(void);
 
 /** Enables GPIO port C and registers refYawIntHandler to run when the value on pin 4 is changes to low.  */
-void initRefGPIO(void);
+void initRefYawInt(void);
 
 /** Assigns the initial states of channel A and B to aState and bState.  */
 void initYawStates(void);
@@ -25,7 +25,7 @@ void initYawStates(void);
 /** Interrupt handler for when the value on the pins monitoring yaw changes.
     Increments yawCounter if channel A leads (clockwise).
     Decrements yawCounter if channel B leads (counter-clockwise).  */
-void GPIOBIntHandler(void);
+void YawIntHandler(void);
 
 /** Sets the yawCounter to 0 so the reference yaw is at 0,
     sets a flag for the main loop, then disables the interrupt.  */

@@ -19,6 +19,8 @@
 #define PID_MAX 98
 #define PID_MIN 2
 
+#define FULL_ROTATION_DEG 360 // degrees of a full rotation
+
 void initMainPid(void);
 void initTailPid(void);
 

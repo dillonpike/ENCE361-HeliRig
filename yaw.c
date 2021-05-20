@@ -1,14 +1,12 @@
 /** @file   yaw.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   26 April 2021
+    @date   20 May 2021
     @brief  Functions related to yaw monitoring.
 */
 
 // library includes
 #include <stdint.h>
 #include <stdbool.h>
-
-// library includes
 #include "inc/hw_memmap.h"
 #include "driverlib/gpio.h"
 #include "driverlib/sysctl.h"
@@ -25,8 +23,8 @@ volatile bool refYawFlag = false;
 static volatile bool aState;
 static volatile bool bState;
 
-/** Enables GPIO port B and initialises GPIOBIntHandler to run when the values on pins 0 or 1 change.  */
-void initGPIO(void)
+/** Enables GPIO port B and initialises YawIntHandler to run when the values on pins 0 or 1 change.  */
+void initYawInt(void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 
@@ -34,12 +32,12 @@ void initGPIO(void)
     GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
     GPIOIntTypeSet(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_BOTH_EDGES);
-    GPIOIntRegister(GPIO_PORTB_BASE, GPIOBIntHandler);
+    GPIOIntRegister(GPIO_PORTB_BASE, YawIntHandler);
     GPIOIntEnable(GPIO_PORTB_BASE, GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
 }
 
 /** Enables GPIO port C and registers refYawIntHandler to run when the value on pin 4 is changes to low.  */
-void initRefGPIO(void)
+void initRefYawInt(void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
 
@@ -60,7 +58,7 @@ void initYawStates(void)
 /** Interrupt handler for when the value on the pins monitoring yaw changes.
     Increments yawCounter if channel A leads (clockwise).
     Decrements yawCounter if channel B leads (counter-clockwise).  */
-void GPIOBIntHandler(void)
+void YawIntHandler(void)
 {
     uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
     GPIOIntClear(GPIO_PORTB_BASE, status);

@@ -38,10 +38,10 @@ double tailPidCompute(double setPoint, double input, double deltaT)
     // Calibrates error to the shortest signed difference between input and setPoint
     // since input and setPoint are constrained between -179 and 180
     // and transitions from -179 to 180 when decreasing, and vice versa
-    if (error < -180) {
-        error += 360;
-    } else if (error > 180) {
-        error -= 360;
+    if (error < -(FULL_ROTATION_DEG / 2)) {
+        error += FULL_ROTATION_DEG;
+    } else if (error > (FULL_ROTATION_DEG / 2)) {
+        error -= FULL_ROTATION_DEG;
     }
 
     double deltaI = error * deltaT; // change in integral since last computation

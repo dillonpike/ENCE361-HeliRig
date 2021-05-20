@@ -1,7 +1,7 @@
 /** @file   main.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   22 April 2021
-    @brief  Accepts an analogue input and displays an altitude based on it.
+    @date   20 May 2021
+    @brief  Monitors and controls the altitude and yaw of a helirig.
 */
 
 // Macro function definitions
@@ -156,9 +156,9 @@ void initProgram(void) {
     initButtons();
     initCircBuf(&circBufADC, BUF_SIZE);
     OLEDInitialise();
-    initGPIO();
+    initYawInt();
     initYawStates();
-    initRefGPIO();
+    initRefYawInt();
     initPWMClock();
     initialisePWM();
     initialisePWMTail();
@@ -244,35 +244,34 @@ void SysTickIntHandler(void)
         updateButtons();
         if (checkButton(LEFT) == PUSHED)
             desiredYaw -= DESIRED_YAW_STEP;
-            if (desiredYaw > 180) {
-                desiredYaw -= 360;
+            if (desiredYaw > (FULL_ROTATION_DEG / 2)) {
+                desiredYaw -= FULL_ROTATION_DEG;
             }
         if (checkButton(RIGHT) == PUSHED)
             desiredYaw += DESIRED_YAW_STEP;
-        if (desiredYaw < -179) {
-            desiredYaw += 360;
+        if (desiredYaw < (-(FULL_ROTATION_DEG / 2) - 1)) {
+            desiredYaw += FULL_ROTATION_DEG;
         }
         if (checkButton(UP) == PUSHED) {
             desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
-            if(desiredAltitude % 10 != 0) desiredAltitude = 10;
         }
         if (checkButton(DOWN) == PUSHED) {
             desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
         }
-        uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
-        if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
+        bool sw1State = getState(SWITCH1);
+        if ((sw1State) && (curHeliMode == LANDED)) {
             if (canLaunch) {
                 curHeliMode = LAUNCHING;
             }
 
-        } else if (sw1State == 0) {
+        } else if (!sw1State) {
             canLaunch = true;
             if(curHeliMode == FLYING) {
                 curHeliMode = LANDING;
                 desiredYaw = refYaw;
             }
         }
-        if (checkButton(RESET) == PUSHED) {
+        if (getState(RESET)) {
             SysCtlReset();
         }
     }
