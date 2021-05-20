@@ -44,5 +44,6 @@ int16_t getRefYaw(void);
 /** Enables PC4 to generate interrupts.  */
 void enableRefYawInt(void);
 
+void resetYawCounter(void);
 
 #endif

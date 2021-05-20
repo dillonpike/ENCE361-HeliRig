@@ -88,6 +88,7 @@ int main(void)
     initialisePWMTail();
     IntMasterEnable();
     ConfigureUART();
+    SysTickEnable();
 
     // local variable declarations
     uint32_t averageADC;
@@ -104,7 +105,7 @@ int main(void)
         int16_t yawDegrees = getYawDegrees();
 
         if (curHeliMode == LAUNCHING) {
-            mainDuty = 10;
+            mainDuty = 25;
             tailDuty = 35;
         } else if (curHeliMode == LANDING) {
             desiredYaw = refYaw;
@@ -116,7 +117,9 @@ int main(void)
         if(refYawFlag) {
             yawDegrees = 0;
             desiredYaw = 0;
+            resetYawCounter();
             curHeliMode = FLYING;
+            refYawFlag = false;
         }
 
         if (curHeliMode != LANDED && curHeliMode != LAUNCHING) {
@@ -205,7 +208,6 @@ void initClock(void)
     SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
     SysTickIntRegister(SysTickIntHandler);
     SysTickIntEnable();
-    SysTickEnable();
 }
 
 /** Sets the initial altitude to the current circular buffer mean if the left button has been pushed.

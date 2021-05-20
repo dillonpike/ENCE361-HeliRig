@@ -120,3 +120,6 @@ void enableRefYawInt(void)
 {
     GPIOIntEnable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
 }
+void resetYawCounter(void) {
+    yawCounter = 0;
+}
