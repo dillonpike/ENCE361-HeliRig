@@ -37,7 +37,7 @@
 #include "pwm.h"
 
 // Constant definitions
-#define SYSTICK_RATE_HZ 200 // rate of the systick clock
+#define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
 #define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BLANK_OLED_STR "                " // blank string for OLED display
@@ -46,6 +46,8 @@
 
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
+
+#define BUTTON_POLLING_RATE_HZ 100 // rate f
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
@@ -71,6 +73,7 @@ static int16_t desiredYaw = 0;
 static int16_t refYaw = 0;
 static volatile uint8_t dTCounter = 0;
 static bool canLaunch = false;
+static uint8_t sysTickButtonCounter = 0;
 
 /** Main function of the MCU.  */
 int main(void)
@@ -221,40 +224,44 @@ void initClock(void)
 void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
-    updateButtons();
-    if(checkButton(LEFT) == PUSHED)
-        desiredYaw -= DESIRED_YAW_STEP;
-        if (desiredYaw > 180) {
-            desiredYaw -= 360;
-        }
-    if(checkButton(RIGHT) == PUSHED)
-        desiredYaw += DESIRED_YAW_STEP;
-    if (desiredYaw < -179) {
-        desiredYaw += 360;
-    }
-    if(checkButton(UP) == PUSHED) {
-        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
-    }
-    if(checkButton(DOWN) == PUSHED) {
-        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
-    }
-    uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
-    if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
-        if(canLaunch) {
-            curHeliMode = LAUNCHING;
-            desiredAltitude = 5;
-            enableRefYawInt();
-        }
+    if(sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
+        sysTickButtonCounter = 0;
+        updateButtons();
+            if(checkButton(LEFT) == PUSHED)
+                desiredYaw -= DESIRED_YAW_STEP;
+                if (desiredYaw > 180) {
+                    desiredYaw -= 360;
+                }
+            if(checkButton(RIGHT) == PUSHED)
+                desiredYaw += DESIRED_YAW_STEP;
+            if (desiredYaw < -179) {
+                desiredYaw += 360;
+            }
+            if(checkButton(UP) == PUSHED) {
+                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
+            }
+            if(checkButton(DOWN) == PUSHED) {
+                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+            }
+            uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
+            if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
+                if(canLaunch) {
+                    curHeliMode = LAUNCHING;
+                    desiredAltitude = 5;
+                    enableRefYawInt();
+                }
 
-    } else if (sw1State == 0) {
-        canLaunch = true;
-        if(curHeliMode == FLYING) {
-            curHeliMode = LANDING;
-            desiredYaw = refYaw;
-        }
+            } else if (sw1State == 0) {
+                canLaunch = true;
+                if(curHeliMode == FLYING) {
+                    curHeliMode = LANDING;
+                    desiredYaw = refYaw;
+                }
+            }
+            if (checkButton(RESET) == PUSHED) {
+                SysCtlReset();
+            }
     }
-    if (checkButton(RESET) == PUSHED) {
-        SysCtlReset();
-    }
+    sysTickButtonCounter++;
     dTCounter++;
 }
