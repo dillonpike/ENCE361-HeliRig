@@ -64,6 +64,7 @@ void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
 void initProgram(void);
+int16_t yawDesired(int16_t desiredYaw);
 void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
@@ -244,14 +245,10 @@ void SysTickIntHandler(void)
         updateButtons();
         if (checkButton(LEFT) == PUSHED)
             desiredYaw -= DESIRED_YAW_STEP;
-            if (desiredYaw > (FULL_ROTATION_DEG / 2)) {
-                desiredYaw -= FULL_ROTATION_DEG;
-            }
+            yawDesired(desiredYaw);
         if (checkButton(RIGHT) == PUSHED)
             desiredYaw += DESIRED_YAW_STEP;
-        if (desiredYaw < (-(FULL_ROTATION_DEG / 2) - 1)) {
-            desiredYaw += FULL_ROTATION_DEG;
-        }
+            yawDesired(desiredYaw);
         if (checkButton(UP) == PUSHED) {
             desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
         }
@@ -277,4 +274,15 @@ void SysTickIntHandler(void)
     }
     sysTickButtonCounter++;
     dTCounter++;
+}
+
+
+int16_t yawDesired(int16_t desiredYaw) {
+    if (desiredYaw > (FULL_ROTATION_DEG / 2)) {
+        desiredYaw -= FULL_ROTATION_DEG;
+    }
+    if (desiredYaw < (-(FULL_ROTATION_DEG / 2) - 1)) {
+        desiredYaw += FULL_ROTATION_DEG;
+    }
+    return desiredYaw;
 }
