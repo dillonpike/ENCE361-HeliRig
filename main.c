@@ -62,7 +62,7 @@ static const char* heliModeStr[] = {"LANDED", "LAUNCHING", "FLYING", "LANDING"};
 void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
-void checkFlags(void);
+void initProgram(void);
 void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
@@ -79,31 +79,16 @@ static uint8_t sysTickButtonCounter = 0;
 /** Main function of the MCU.  */
 int main(void)
 {
-    // Initialization of peripherals
-    initClock();
-    initADC();
-    initButtons();
-    initCircBuf(&circBufADC, BUF_SIZE);
-    OLEDInitialise();
-    initGPIO();
-    initYawStates();
-    initRefGPIO();
-    initPWMClock();
-    initialisePWM();
-    initialisePWMTail();
-    IntMasterEnable();
-    ConfigureUART();
-    SysTickEnable();
+    initProgram();
 
     // local variable declarations
     uint32_t averageADC;
     int16_t altitudePercentage;
-
-    initialAlt = altRead(); //takes first reading as initial alt (constant)
     uint8_t tailDuty = 0;
     uint8_t mainDuty = 0;
-
     bool isHovering = false;
+
+    initialAlt = altRead(); // Takes first reading as initial altitutde (constant)
 
     while (1)
     {
@@ -115,6 +100,8 @@ int main(void)
             if (!isHovering && altitudePercentage > 0) {
                 isHovering = true;
                 tailDuty = TAIL_DUTY_REF;
+                enableRefYawInt();
+
             }
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
@@ -124,14 +111,16 @@ int main(void)
                     mainDuty = 0;
                     tailDuty = 0;
                     isHovering = false;
+                    resetErrorIntegrals();
                 }
             }
         }
 
-        if(refYawFlag) {
+        // Sets current and desired yaw to 0 if flag set (heli at reference yaw)
+        // and sets heli to flying mode
+        if (refYawFlag) {
             yawDegrees = 0;
             desiredYaw = 0;
-            resetYawCounter();
             curHeliMode = FLYING;
             refYawFlag = false;
         }
@@ -157,6 +146,24 @@ int main(void)
         displayInfoOLED(altitudePercentage, yawDegrees, tailDuty, mainDuty);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
+}
+
+/* Initialises the peripherals, interrupts, serial output, circular buffer, and yaw channel states.  */
+void initProgram(void) {
+    initClock();
+    initADC();
+    initButtons();
+    initCircBuf(&circBufADC, BUF_SIZE);
+    OLEDInitialise();
+    initGPIO();
+    initYawStates();
+    initRefGPIO();
+    initPWMClock();
+    initialisePWM();
+    initialisePWMTail();
+    IntMasterEnable();
+    ConfigureUART();
+    SysTickEnable();
 }
 
 /* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
@@ -230,40 +237,39 @@ void SysTickIntHandler(void)
     if(sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
         sysTickButtonCounter = 0;
         updateButtons();
-            if (checkButton(LEFT) == PUSHED)
-                desiredYaw -= DESIRED_YAW_STEP;
-                if (desiredYaw > 180) {
-                    desiredYaw -= 360;
-                }
-            if (checkButton(RIGHT) == PUSHED)
-                desiredYaw += DESIRED_YAW_STEP;
-            if (desiredYaw < -179) {
-                desiredYaw += 360;
+        if (checkButton(LEFT) == PUSHED)
+            desiredYaw -= DESIRED_YAW_STEP;
+            if (desiredYaw > 180) {
+                desiredYaw -= 360;
             }
-            if (checkButton(UP) == PUSHED) {
-                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
-                if(desiredAltitude % 10 != 0) desiredAltitude = 10;
+        if (checkButton(RIGHT) == PUSHED)
+            desiredYaw += DESIRED_YAW_STEP;
+        if (desiredYaw < -179) {
+            desiredYaw += 360;
+        }
+        if (checkButton(UP) == PUSHED) {
+            desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
+            if(desiredAltitude % 10 != 0) desiredAltitude = 10;
+        }
+        if (checkButton(DOWN) == PUSHED) {
+            desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+        }
+        uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
+        if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
+            if (canLaunch) {
+                curHeliMode = LAUNCHING;
             }
-            if (checkButton(DOWN) == PUSHED) {
-                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
-            }
-            uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
-            if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
-                if (canLaunch) {
-                    curHeliMode = LAUNCHING;
-                    enableRefYawInt();
-                }
 
-            } else if (sw1State == 0) {
-                canLaunch = true;
-                if(curHeliMode == FLYING) {
-                    curHeliMode = LANDING;
-                    desiredYaw = refYaw;
-                }
+        } else if (sw1State == 0) {
+            canLaunch = true;
+            if(curHeliMode == FLYING) {
+                curHeliMode = LANDING;
+                desiredYaw = refYaw;
             }
-            if (checkButton(RESET) == PUSHED) {
-                SysCtlReset();
-            }
+        }
+        if (checkButton(RESET) == PUSHED) {
+            SysCtlReset();
+        }
     }
     sysTickButtonCounter++;
     dTCounter++;

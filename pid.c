@@ -58,3 +58,10 @@ double tailPidCompute(double setPoint, double input, double deltaT)
 
     return control;
 }
+
+/* Sets main and tail error integrals to 0.  */
+void resetErrorIntegrals(void)
+{
+    mainErrorIntegral = 0;
+    tailErrorIntegral = 0;
+}

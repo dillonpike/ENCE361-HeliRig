@@ -25,4 +25,7 @@ void initTailPid(void);
 double mainPidCompute(uint8_t setPoint, int16_t input, double deltaT);
 double tailPidCompute(double setPoint, double input, double deltaT);
 
+/* Sets main and tail error integrals to 0.  */
+void resetErrorIntegrals(void);
+
 #endif /* PID_H_ */

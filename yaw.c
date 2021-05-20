@@ -83,11 +83,12 @@ void GPIOBIntHandler(void)
     yawConstrain();
 }
 
-/** Sets the current yaw to the reference yaw, then disables the interrupt.  */
+/** Sets the yawCounter to 0 so the reference yaw is at 0,
+    sets a flag for the main loop, then disables the interrupt.  */
 void refYawIntHandler(void)
 {
-    refYaw = getYawDegrees();
     GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
+    yawCounter = 0;
     refYawFlag = true;
     GPIOIntDisable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
 }
@@ -109,17 +110,9 @@ int16_t getYawDegrees(void)
     return yawCounter * DEGREES_PER_REV / (4 * DISC_SLOTS);
 }
 
-/** Returns the reference yaw.
-    @return reference yaw.  */
-int16_t getRefYaw(void) {
-    return refYaw;
-}
-
-/** Enables PC4 to generate interrupts.  */
+/** Enables PC4 interrupts to be handled and clears any interrupts generated while disabled.  */
 void enableRefYawInt(void)
 {
+    GPIOIntClear(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
     GPIOIntEnable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
-}
-void resetYawCounter(void) {
-    yawCounter = 0;
 }

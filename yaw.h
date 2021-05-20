@@ -27,7 +27,8 @@ void initYawStates(void);
     Decrements yawCounter if channel B leads (counter-clockwise).  */
 void GPIOBIntHandler(void);
 
-/** Sets the current yaw to the reference yaw.  */
+/** Sets the yawCounter to 0 so the reference yaw is at 0,
+    sets a flag for the main loop, then disables the interrupt.  */
 void refYawIntHandler(void);
 
 /** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
@@ -37,13 +38,7 @@ void yawConstrain(void);
     @return yawCounter converted to degrees.  */
 int16_t getYawDegrees(void);
 
-/** Returns the reference yaw.
-    @return reference yaw.  */
-int16_t getRefYaw(void);
-
 /** Enables PC4 to generate interrupts.  */
 void enableRefYawInt(void);
-
-void resetYawCounter(void);
 
 #endif
