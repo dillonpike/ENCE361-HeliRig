@@ -108,8 +108,8 @@ int main(void)
         altitudePercentage = altitudeCalc(averageADC);
         int16_t yawDegrees = getYawDegrees();
 
-        if (curHeliMode == LAUNCHING) {
-            tailDuty = 35;
+        if ((curHeliMode == LAUNCHING)) {
+            setPWMDuty(40, TAIL);
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
                 desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - 5);
@@ -131,7 +131,7 @@ int main(void)
 
         if (curHeliMode != LANDED) {
             mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
-            if (curHeliMode != LAUNCHING) {
+            if(curHeliMode != LAUNCHING) {
                 tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
             }
         }
@@ -227,27 +227,28 @@ void SysTickIntHandler(void)
     if(sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
         sysTickButtonCounter = 0;
         updateButtons();
-            if(checkButton(LEFT) == PUSHED)
+            if (checkButton(LEFT) == PUSHED)
                 desiredYaw -= DESIRED_YAW_STEP;
                 if (desiredYaw > 180) {
                     desiredYaw -= 360;
                 }
-            if(checkButton(RIGHT) == PUSHED)
+            if (checkButton(RIGHT) == PUSHED)
                 desiredYaw += DESIRED_YAW_STEP;
             if (desiredYaw < -179) {
                 desiredYaw += 360;
             }
-            if(checkButton(UP) == PUSHED) {
+            if (checkButton(UP) == PUSHED) {
                 desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
+                if(desiredAltitude % 10 != 0) desiredAltitude = 10;
             }
-            if(checkButton(DOWN) == PUSHED) {
+            if (checkButton(DOWN) == PUSHED) {
                 desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
             }
             uint8_t sw1State = GPIOPinRead(GPIO_PORTA_BASE, GPIO_PIN_7);
             if ((sw1State == GPIO_PIN_7) && (curHeliMode == LANDED)) {
-                if(canLaunch) {
+                if (canLaunch) {
                     curHeliMode = LAUNCHING;
-                    desiredAltitude = 5;
+                    desiredAltitude = 2;
                     enableRefYawInt();
                 }
 
