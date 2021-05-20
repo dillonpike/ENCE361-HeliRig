@@ -47,6 +47,7 @@
 #define HOVER_DESIRED_ALT 10 // desired altitude when finding hover point
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
+#define LANDING_ALT_STEP 5 // decrement step of altitude when landing
 
 #define TAIL_DUTY_REF 45 // tail rotor duty cycle for finding reference point
 
@@ -82,8 +83,9 @@ int main(void)
     initProgram();
 
     // local variable declarations
-    uint32_t averageADC;
-    int16_t altitudePercentage;
+    uint32_t averageADC = 0;
+    int16_t altitudePercentage = 0;
+    int16_t yawDegrees = 0;
     uint8_t tailDuty = 0;
     uint8_t mainDuty = 0;
     bool isHovering = false;
@@ -94,18 +96,17 @@ int main(void)
     {
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
-        int16_t yawDegrees = getYawDegrees();
+        yawDegrees = getYawDegrees();
 
         if ((curHeliMode == LAUNCHING)) {
-            if (!isHovering && altitudePercentage > 0) {
+            if ((!isHovering) && (altitudePercentage) > 0) {
                 isHovering = true;
                 tailDuty = TAIL_DUTY_REF;
                 enableRefYawInt();
-
             }
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
-                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - 5);
+                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - LANDING_ALT_STEP);
                 if (altitudePercentage == 0) {
                     curHeliMode = LANDED;
                     mainDuty = 0;
@@ -171,29 +172,33 @@ void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tai
     char dispStr[MAX_OLED_STR];
 
     usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%4d]\n", altitudePercentage, desiredAltitude);
-    OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
+    OLEDStringDraw(dispStr, 0, 0); // Display current altitude and desired altitude on line 0
 
     usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
-    OLEDStringDraw(dispStr, 0, 1); // Position of yaw display
+    OLEDStringDraw(dispStr, 0, 1); // Display current yaw and desired yaw on line 1
 
     usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
-    OLEDStringDraw(dispStr, 0, 2); // Duty values display
+    OLEDStringDraw(dispStr, 0, 2); // Display main and tail duty cycles on line 2
 
     usnprintf(dispStr, MAX_OLED_STR, "MODE: %9s", heliModeStr[curHeliMode]);
-    OLEDStringDraw(dispStr, 0, 3); // Heli mode display
+    OLEDStringDraw(dispStr, 0, 3); // Display heli mode on line 3
 }
 
-/* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
+/* Prints altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
     char debugStr[DEBUG_STR_LEN];
+
     usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%4d]\n", altitudePercentage, desiredAltitude);
-    UARTprintf(debugStr);
+    UARTprintf(debugStr); // Display current altitude and desired altitude
+
     usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
-    UARTprintf(debugStr);
+    UARTprintf(debugStr); // Display current yaw and desired yaw
+
     usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
-    UARTprintf(debugStr);
+    UARTprintf(debugStr); // Display main and tail duty cycles
+
     usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
-    UARTprintf(debugStr);
+    UARTprintf(debugStr); // Display heli mode
 }
 
 
