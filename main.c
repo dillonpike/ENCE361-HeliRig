@@ -65,6 +65,7 @@ void SysTickIntHandler(void);
 void ConfigureUART(void);
 void initProgram(void);
 int16_t yawDesired(int16_t desiredYaw);
+void switchAndHeliState(bool sw1State);
 void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
@@ -81,6 +82,7 @@ static uint8_t sysTickButtonCounter = 0;
 /** Main function of the MCU.  */
 int main(void)
 {
+    //NOTE: Coupling in the simulator affects accuracy.
     initProgram();
 
     // local variable declarations
@@ -256,18 +258,8 @@ void SysTickIntHandler(void)
             desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
         }
         bool sw1State = getState(SWITCH1);
-        if ((sw1State) && (curHeliMode == LANDED)) {
-            if (canLaunch) {
-                curHeliMode = LAUNCHING;
-            }
+        switchAndHeliState(sw1State);
 
-        } else if (!sw1State) {
-            canLaunch = true;
-            if(curHeliMode == FLYING) {
-                curHeliMode = LANDING;
-                desiredYaw = refYaw;
-            }
-        }
         if (getState(RESET)) {
             SysCtlReset();
         }
@@ -276,6 +268,20 @@ void SysTickIntHandler(void)
     dTCounter++;
 }
 
+void switchAndHeliState(bool sw1State) {
+    if ((sw1State) && (curHeliMode == LANDED)) {
+        if (canLaunch) {
+            curHeliMode = LAUNCHING;
+        }
+
+    } else if (!sw1State) {
+        canLaunch = true;
+        if(curHeliMode == FLYING) {
+            curHeliMode = LANDING;
+            desiredYaw = refYaw;
+        }
+    }
+}
 
 int16_t yawDesired(int16_t desiredYaw) {
     if (desiredYaw > (FULL_ROTATION_DEG / 2)) {
