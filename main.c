@@ -4,7 +4,7 @@
     @brief  Accepts an analogue input and displays an altitude based on it.
 */
 
-// Macro function definition
+// Macro function definitions
 #define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
 #define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
 #define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
@@ -47,12 +47,11 @@
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
 
-#define BUTTON_POLLING_RATE_HZ 100 // rate f
+#define BUTTON_POLLING_RATE_HZ 100 // rate of button polling in Hz
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
 
-enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
 enum heliMode {LANDED = 0, LAUNCHING, FLYING, LANDING};
 static const char* heliModeStr[] = {"LANDED", "LAUNCHING", "FLYING", "LANDING"};
 
@@ -61,11 +60,10 @@ void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
 void checkFlags(void);
-void displayInfoOLED(int16_t altitudePercentage, uint32_t averageADC, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
+void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
 //main.c variable declarations
-static uint8_t curAltDispMode = ALT_MODE_PERCENTAGE;
 static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
@@ -109,7 +107,7 @@ int main(void)
         int16_t yawDegrees = getYawDegrees();
 
         if ((curHeliMode == LAUNCHING)) {
-            setPWMDuty(40, TAIL);
+            tailDuty = 30;
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
                 desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - 5);
@@ -139,36 +137,27 @@ int main(void)
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
 
-#ifdef DEBUG
+        #ifdef DEBUG
         displayInfoSerial(altitudePercentage, yawDegrees, tailDuty, mainDuty);
-#endif
-        displayInfoOLED(altitudePercentage, averageADC, yawDegrees, tailDuty, mainDuty);
+        #endif
+        displayInfoOLED(altitudePercentage, yawDegrees, tailDuty, mainDuty);
         SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
     }
 }
 
 /* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
-void displayInfoOLED(int16_t altitudePercentage, uint32_t averageADC, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
     char dispStr[MAX_OLED_STR];
 
-    // Sets different formatting of text depending on display mode of OLED
-    switch(curAltDispMode) {
-        case ALT_MODE_PERCENTAGE:
-            usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%3d]\n", altitudePercentage, desiredAltitude);
-            break;
-        case ALT_MODE_RAW_ADC:
-            usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %5d", averageADC);
-            break;
-        case ALT_MODE_OFF:
-            usnprintf(dispStr, MAX_OLED_STR, BLANK_OLED_STR);
-            break;
-    }
+    usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%4d]\n", altitudePercentage, desiredAltitude);
     OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
 
     usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
     OLEDStringDraw(dispStr, 0, 1); // Position of yaw display
+
     usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
     OLEDStringDraw(dispStr, 0, 2); // Duty values display
+
     usnprintf(dispStr, MAX_OLED_STR, "MODE: %9s", heliModeStr[curHeliMode]);
     OLEDStringDraw(dispStr, 0, 3); // Heli mode display
 }
@@ -176,7 +165,7 @@ void displayInfoOLED(int16_t altitudePercentage, uint32_t averageADC, int16_t ya
 /* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
     char debugStr[DEBUG_STR_LEN];
-    usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
+    usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%4d]\n", altitudePercentage, desiredAltitude);
     UARTprintf(debugStr);
     usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
     UARTprintf(debugStr);
