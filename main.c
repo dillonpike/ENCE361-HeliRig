@@ -1,6 +1,6 @@
 /** @file   main.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   20 May 2021
+    @date   21 May 2021
     @brief  Monitors and controls the altitude and yaw of a helirig.
 */
 
