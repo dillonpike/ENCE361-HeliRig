@@ -4,8 +4,7 @@
     @brief  Monitors and controls the altitude and yaw of a helirig.
 */
 
-// Macro function definitions
-#define MS_TO_CYCLES(ms, clockRate) ((clockRate) / 1000 * (ms)) // Converts milliseconds into clock cycles
+// Macro function definition
 #define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
 #define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
 #define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
@@ -35,14 +34,13 @@
 #include "yaw.h"
 #include "pid.h"
 #include "pwm.h"
+#include "pacer.h"
 
 // Constant definitions
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
 #define MAX_OLED_STR 17 // maximum allowable string for the OLED display
 #define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
-#define BLANK_OLED_STR "                " // blank string for OLED display
-#define INSTRUCTIONS_PER_CYCLE 3  // number of instructions that sysctldelay performs each cycle
-#define DISPLAY_DELAY 100 // OLED display refresh time (ms)
+#define BACKGROUND_LOOP_FREQ_HZ 10
 
 #define HOVER_DESIRED_ALT 10 // desired altitude when finding hover point
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
@@ -145,7 +143,8 @@ int main(void)
         displayInfoSerial(altitudePercentage, yawDegrees, tailDuty, mainDuty);
         #endif
         displayInfoOLED(altitudePercentage, yawDegrees, tailDuty, mainDuty);
-        SysCtlDelay(MS_TO_CYCLES(DISPLAY_DELAY, clockRate)/INSTRUCTIONS_PER_CYCLE);
+
+        pacerWait();
     }
 }
 
@@ -165,6 +164,7 @@ void initProgram(void) {
     IntMasterEnable();
     ConfigureUART();
     SysTickEnable();
+    initPacer(BACKGROUND_LOOP_FREQ_HZ);
 }
 
 /* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
