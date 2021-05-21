@@ -1,28 +1,28 @@
-/** @file   pid.c
+/** @file   pi.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
     @date   21 May 2021
     @brief  Functions related to PI control for the main and tail rotors.
 */
 
-#include "pid.h"
+#include "pi.h"
 
 static double mainErrorIntegral = 0;
 static double tailErrorIntegral = 0;
 
 /** Calculates a PI control duty cycle to drive the main rotor based on a set and input altitude.  */
-double mainPidCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
+double mainPiCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
 {
     double control;
     double error = setAltitude - inputAltitude;
     double deltaI = error * deltaT;
 
-    control = error * MAIN_PID_KP + (mainErrorIntegral + deltaI) * MAIN_PID_KI;
+    control = error * MAIN_PI_KP + (mainErrorIntegral + deltaI) * MAIN_PI_KI;
 
-    // Constrains control between PID_MIN and PID_MAX
-    if(control < PID_MIN) {
-        control = PID_MIN;
-    } else if (control > PID_MAX) {
-        control = PID_MAX;
+    // Constrains control between PI_MIN and PI_MAX
+    if(control < PI_MIN) {
+        control = PI_MIN;
+    } else if (control > PI_MAX) {
+        control = PI_MAX;
     } else {
         mainErrorIntegral += deltaI; // adds to error integral if not constrained
     }
@@ -31,7 +31,7 @@ double mainPidCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
 }
 
 /** Calculates a PI control duty cycle to drive the tail rotor based on a set and input yaw.  */
-double tailPidCompute(double setPoint, double input, double deltaT)
+double tailPiCompute(double setPoint, double input, double deltaT)
 {
     double control;
     double error = setPoint - input;
@@ -47,13 +47,13 @@ double tailPidCompute(double setPoint, double input, double deltaT)
 
     double deltaI = error * deltaT; // change in integral since last computation
 
-    control = error * TAIL_PID_KP + (tailErrorIntegral + deltaI) * TAIL_PID_KI;
+    control = error * TAIL_PI_KP + (tailErrorIntegral + deltaI) * TAIL_PI_KI;
 
-    // Constrains control between PID_MIN and PID_MAX
-    if(control < PID_MIN) {
-        control = PID_MIN;
-    } else if (control > PID_MAX) {
-        control = PID_MAX;
+    // Constrains control between PI_MIN and PI_MAX
+    if(control < PI_MIN) {
+        control = PI_MIN;
+    } else if (control > PI_MAX) {
+        control = PI_MAX;
     } else {
         tailErrorIntegral += deltaI; // adds to error integral if not constrained
     }

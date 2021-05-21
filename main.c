@@ -31,7 +31,7 @@
 #include "utils/uartstdio.h"
 #include "alt.h"
 #include "yaw.h"
-#include "pid.h"
+#include "pi.h"
 #include "pwm.h"
 #include "pacer.h"
 
@@ -104,14 +104,15 @@ int main(void)
             }
         } else if (curHeliMode == LANDING) {
             if (yawDegrees == desiredYaw) {
-                // Gradually lowers altitude when heli is facing reference point
-                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - LANDING_ALT_STEP);
                 if (altitudePercentage == 0) {
                     curHeliMode = LANDED;
                     mainDuty = 0;
                     tailDuty = 0; // turns off the motors
                     isHovering = false;
                     resetErrorIntegrals(); // resets error integrals so they don't affect next flight
+                } else {
+                    // Gradually lowers altitude when heli is facing reference point
+                    desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - LANDING_ALT_STEP);
                 }
             }
         }
@@ -127,15 +128,15 @@ int main(void)
 
         if (curHeliMode != LANDED) {
             if(curHeliMode != LAUNCHING) {
-                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
-                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                mainDuty = mainPiCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                tailDuty = tailPiCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
             } else if (!isHovering) {
                 // Sets a desired altitude so heli can find a main duty that allows it to hover
-                mainDuty = mainPidCompute(HOVER_DESIRED_ALT, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
-                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                mainDuty = mainPiCompute(HOVER_DESIRED_ALT, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                tailDuty = tailPiCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
             } else {
                 // Adjusts main duty to keep altitude at desired point while searching for reference yaw
-                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                mainDuty = mainPiCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
             }
         }
         dTCounter = 0; // Reset dTCounter
