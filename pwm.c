@@ -81,7 +81,7 @@ initialisePWM (void)
     SysCtlPeripheralEnable(PWM_MAIN_PERIPH_PWM);
     SysCtlPeripheralEnable(PWM_MAIN_PERIPH_GPIO);
 
-    while(!SysCtlPeripheralReady(PWM_MAIN_PERIPH_PWM));
+    while (!SysCtlPeripheralReady(PWM_MAIN_PERIPH_PWM));
     GPIOPinConfigure(PWM_MAIN_GPIO_CONFIG);
     GPIOPinTypePWM(PWM_MAIN_GPIO_BASE, PWM_MAIN_GPIO_PIN);
 

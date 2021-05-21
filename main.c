@@ -4,11 +4,6 @@
     @brief  Monitors and controls the altitude and yaw of a helirig.
 */
 
-// Macro function definition
-#define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
-#define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
-#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
-
 // standard library includes
 #include <stdio.h>
 #include <stdint.h>
@@ -34,6 +29,11 @@
 #include "pi.h"
 #include "pwm.h"
 #include "pacer.h"
+
+// Macro function definition
+#define MIN(a,b) (((a)<(b))?(a):(b)) // min of two numbers
+#define MAX(a,b) (((a)>(b))?(a):(b)) // max of two numbers
+#define CONSTRAIN_PERCENT(x) (MIN(MAX(0, (x)), 100)) // Constrains x to a valid percentage range  */
 
 // Constant definitions
 #define SYSTICK_RATE_HZ 500 // rate of the systick clock
@@ -127,7 +127,7 @@ int main(void)
         }
 
         if (curHeliMode != LANDED) {
-            if(curHeliMode != LAUNCHING) {
+            if (curHeliMode != LAUNCHING) {
                 mainDuty = mainPiCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
                 tailDuty = tailPiCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
             } else if (!isHovering) {
@@ -244,7 +244,7 @@ void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
     // Checks buttons at a desired frequency
-    if(sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
+    if (sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
         sysTickButtonCounter = 0;
         updateButtons();
         if (checkButton(LEFT) == PUSHED) {
@@ -274,7 +274,7 @@ void SysTickIntHandler(void)
             }
         } else if (!sw1State) {
             canLaunch = true;
-            if(curHeliMode == FLYING) {
+            if (curHeliMode == FLYING) {
                 curHeliMode = LANDING;
                 desiredYaw = 0;
             }

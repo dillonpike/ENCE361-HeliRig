@@ -62,16 +62,16 @@ void YawIntHandler(void)
     uint32_t status = GPIOIntStatus(GPIO_PORTB_BASE, true);
     GPIOIntClear(GPIO_PORTB_BASE, status);
 
-    if(status & GPIO_PIN_0) { // if channel A changes
+    if (status & GPIO_PIN_0) { // if channel A changes
         aState = !aState;
-        if(aState != bState) { // if channel A leads
+        if (aState != bState) { // if channel A leads
             yawCounter--;
         } else {
             yawCounter++;
         }
     } else {
         bState = !bState;
-        if(aState != bState) { // if channel B leads
+        if (aState != bState) { // if channel B leads
             yawCounter++;
         } else {
             yawCounter--;
@@ -93,9 +93,9 @@ void refYawIntHandler(void)
 /** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
 void yawConstrain(void)
 {
-    if(yawCounter > DISC_SLOTS * 2) {
+    if (yawCounter > DISC_SLOTS * 2) {
         yawCounter -= DISC_SLOTS * 4;
-    } else if(yawCounter <= -2 * DISC_SLOTS) {
+    } else if (yawCounter <= -2 * DISC_SLOTS) {
         yawCounter += DISC_SLOTS * 4;
     }
 }

@@ -39,7 +39,7 @@ void ADCIntHandler(void)
     ADCSequenceDataGet(ADC0_BASE, 0, &valADC);
     writeCircBuf(&circBufADC, valADC);
     ADCIntClear(ADC0_BASE, 0);
-    if(sampleCount < BUF_SIZE) {
+    if (sampleCount < BUF_SIZE) {
         sampleCount++;
     } else {
         initialAltRead = true;
@@ -51,7 +51,7 @@ void initADC(void)
 {
     // Enable ADC0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
     // Configure sequence
     ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
     #ifdef TESTING

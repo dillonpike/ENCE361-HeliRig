@@ -50,7 +50,7 @@ double tailPiCompute(double setPoint, double input, double deltaT)
     control = error * TAIL_PI_KP + (tailErrorIntegral + deltaI) * TAIL_PI_KI;
 
     // Constrains control between PI_MIN and PI_MAX
-    if(control < PI_MIN) {
+    if (control < PI_MIN) {
         control = PI_MIN;
     } else if (control > PI_MAX) {
         control = PI_MAX;
