@@ -36,6 +36,6 @@ void initialisePWMTail (void);
  * Function to set the duty cycle of M0PWM7.
  * Modified to also set duty cycle of M1PWM5.
  ********************************************************/
-void setPWMDuty(double duty, rotor chosenRotor);
+void setPWMDuty (double duty, rotor chosenRotor);
 
 #endif /* PWM_H_ */

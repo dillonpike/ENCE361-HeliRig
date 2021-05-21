@@ -32,7 +32,7 @@ initCircBuf (circBuf_t *buffer, uint32_t size)
 	buffer->rindex = 0;
 	buffer->size = size;
 	buffer->data = 
-        (uint32_t *) calloc (size, sizeof(uint32_t));
+        (uint32_t *) calloc(size, sizeof(uint32_t));
 	return buffer->data;
 }
    // Note use of calloc() to clear contents.
@@ -83,7 +83,7 @@ freeCircBuf (circBuf_t * buffer)
     @param address of circular buffer.
     @return mean of buffer values.  */
 uint32_t
-bufferMean(circBuf_t* circBuf)
+bufferMean (circBuf_t* circBuf)
 {
     uint32_t cumSum = 0;
     uint16_t bufIndex;

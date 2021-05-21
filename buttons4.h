@@ -95,6 +95,6 @@ checkButton (uint8_t butName);
 // Accepts SWITCH1 and RESET as butName, otherwise returns false.
 // Added by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
 bool
-getState(uint8_t butName);
+getState (uint8_t butName);
 
 #endif /* BUTTONS_H_ */

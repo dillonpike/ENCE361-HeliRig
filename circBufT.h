@@ -59,6 +59,6 @@ freeCircBuf (circBuf_t *buffer);
     @param address of circular buffer.
     @return mean of buffer values.  */
 uint32_t
-bufferMean(circBuf_t* circBuf);
+bufferMean (circBuf_t* circBuf);
 
 #endif /* CIRCBUFT_H_ */

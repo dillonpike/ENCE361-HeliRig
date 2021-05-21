@@ -173,13 +173,13 @@ checkButton (uint8_t butName)
 // Accepts SWITCH1 and RESET as butName, otherwise returns false.
 // Added by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
 bool
-getState(uint8_t butName)
+getState (uint8_t butName)
 {
     if (butName == SWITCH1) {
-        return (GPIOPinRead(SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN) == SWITCH1_BUT_PIN);
+        return (GPIOPinRead (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN) == SWITCH1_BUT_PIN);
 
     } else if (butName == RESET) {
-        return (GPIOPinRead(RESET_BUT_PORT_BASE, RESET_BUT_PIN) == RESET_BUT_PIN);
+        return (GPIOPinRead (RESET_BUT_PORT_BASE, RESET_BUT_PIN) == RESET_BUT_PIN);
     }
     return false;
 }
