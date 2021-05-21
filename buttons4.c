@@ -15,7 +15,7 @@
 // Modified to get state of SW1 and SW2 (RESET) by
 // Bailey Lissington, Dillon Pike, and Joseph Ramirez.
 //
-// Last modified: 20 May 2021
+// Last modified: 21 May 2021
 // *******************************************************
 
 #include <stdint.h>
@@ -27,7 +27,6 @@
 #include "driverlib/debug.h"
 #include "inc/tm4c123gh6pm.h"  // Board specific defines (for PF0)
 #include "buttons4.h"
-
 
 // *******************************************************
 // Globals to module

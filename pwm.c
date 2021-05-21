@@ -6,7 +6,7 @@
  * Modified to generate a second PWM output (M1PWM5)
  * by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
  *
- * Last modified:  7 May 2021
+ * Last modified: 21 May 2021
  **********************************************************/
 
 #include <stdint.h>

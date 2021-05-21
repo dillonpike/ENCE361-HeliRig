@@ -3,7 +3,7 @@
 
 // *******************************************************
 // 
-// circBufT.c
+// circBufT.h
 //
 // Support for a circular buffer of uint32_t values on the 
 // Tiva processor.
@@ -11,7 +11,9 @@
 // Last modified:  8.3.2017
 // 
 // bufferMean function added by Bailey Lissington,
-// Dillon Pike, and Joseph Ramirez on 24 April 2021
+// Dillon Pike, and Joseph Ramirez.
+//
+// Last modified: 21 May 2021
 // *******************************************************
 #include <stdint.h>
 
@@ -58,5 +60,4 @@ freeCircBuf (circBuf_t *buffer);
 uint32_t
 bufferMean(circBuf_t* circBuf);
 
-
-#endif /*CIRCBUFT_H_*/
+#endif /* CIRCBUFT_H_ */

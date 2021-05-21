@@ -1,6 +1,6 @@
 /** @file   yaw.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   20 May 2021
+    @date   21 May 2021
     @brief  Functions related to yaw monitoring.
 */
 
@@ -15,8 +15,7 @@
 // global yaw counter variable that tracks how many disc slots the reader is away from the origin
 static volatile int16_t yawCounter = 0;
 
-// global variable to store the reference yaw
-static volatile int16_t refYaw = 0;
+// flag for refYawIntHandler to set so it can be handled in main loop
 volatile bool refYawFlag = false;
 
 // global variables that track the state of channel A and B

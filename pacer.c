@@ -1,9 +1,8 @@
-/*
- * pacer.c
- *
- *  Created on: 19/05/2021
- *      Author: lissi
- */
+/** @file   pacer.c
+    @author Bailey Lissington, Dillon Pike, Joseph Ramirez
+    @date   21 May 2021
+    @brief  Functions related to implementing a pacer loop.
+*/
 
 #include <stdbool.h>
 
@@ -14,19 +13,23 @@
 #include "inc/hw_types.h"
 #include "inc/hw_timer.h"
 
-uint32_t pacerPeriod; // desired pacer period in timer increments
+static uint32_t pacerPeriod; // desired pacer period in timer increments
 
-
+/** Initialises the pacerPeriod and initialises TIMER0.  */
 void initPacer(uint16_t freq) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     pacerPeriod = SysCtlClockGet() / freq;
+
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER0));
+
     TimerConfigure(TIMER0_BASE, TIMER_CFG_ONE_SHOT_UP);
     TimerEnable(TIMER0_BASE, TIMER_A);
 }
+
+/** Waits until a time equal to pacerPeriod has elapsed since the last timer reset, then resets the timer.  */
 void pacerWait(void) {
-    uint32_t incrementsElapsed = TimerValueGet(TIMER0_BASE, TIMER_A);
     while(TimerValueGet(TIMER0_BASE, TIMER_A) < pacerPeriod);
+
     HWREG(TIMER0_BASE + TIMER_O_TBV) = 0;
     HWREG(TIMER0_BASE + TIMER_O_TAV) = 0;
 }

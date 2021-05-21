@@ -6,7 +6,7 @@
  * Modified to generate a second PWM output (M1PWM5)
  * by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
  *
- * Last modified:  7 May 2021
+ * Last modified: 21 May 2021
  **********************************************************/
 
 #ifndef PWM_H_
@@ -38,5 +38,4 @@ void initialisePWMTail (void);
  ********************************************************/
 void setPWMDuty(double duty, rotor chosenRotor);
 
-
-#endif
+#endif /* PWM_H_ */

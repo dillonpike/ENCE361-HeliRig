@@ -1,6 +1,6 @@
 /** @file   alt.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   6 May 2021
+    @date   21 May 2021
     @brief  Functions related to altitude monitoring.
 */
 
@@ -20,10 +20,12 @@
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
 static volatile uint8_t sampleCount = 0; //Counter comparing to BUF_SIZE; interrupt to get the mean initial read
 
+/** Calculates the raw ADC mean of the circular buffer and returns it.
+    @return average raw ADC.  */
 uint32_t altRead(void)
 {
-    // Block until initial altitude reading
-    while (!initialAltRead);
+    while (!initialAltRead); // Block until initial altitude reading
+
     uint32_t readAlt = bufferMean(&circBufADC);
     return readAlt;
 }
@@ -44,7 +46,7 @@ void ADCIntHandler(void)
     }
 }
 
-/* Initialises the Analog to Digital Converter of the MCU.  */
+/** Initialises the Analog to Digital Converter of the MCU.  */
 void initADC(void)
 {
     // Enable ADC0
@@ -52,11 +54,11 @@ void initADC(void)
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
     // Configure sequence
     ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
-#ifdef TESTING
+    #ifdef TESTING
     ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
-#else
+    #else
     ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH9);
-#endif
+    #endif
     ADCSequenceEnable(ADC0_BASE, 0);
     ADCIntRegister(ADC0_BASE, 0, ADCIntHandler);
     ADCIntEnable(ADC0_BASE, 0);

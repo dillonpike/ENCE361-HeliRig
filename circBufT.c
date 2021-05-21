@@ -8,8 +8,9 @@
 // Last modified:  8.3.2017
 // 
 // bufferMean function and AVERAGE_OF_SUM macro added by
-// Bailey Lissington, Dillon Pike, and Joseph Ramirez on
-// 24 April 2021
+// Bailey Lissington, Dillon Pike, and Joseph Ramirez.
+//
+// Last modified: 21 May 2021
 // *******************************************************
 
 #include <stdint.h>

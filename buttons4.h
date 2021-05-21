@@ -9,8 +9,12 @@
 // The buttons are:  UP and DOWN (on the Orbit daughterboard) plus
 // LEFT and RIGHT on the Tiva.
 //
-// P.J. Bones UCECE
-// Last modified:  7.2.2018
+// P.J. Bones UCECE 7.2.2018
+//
+// Modified to get state of SW1 and SW2 (RESET) by
+// Bailey Lissington, Dillon Pike, and Joseph Ramirez.
+//
+// Last modified: 21 May 2021
 // 
 // *******************************************************
 
@@ -93,4 +97,4 @@ checkButton (uint8_t butName);
 bool
 getState(uint8_t butName);
 
-#endif /*BUTTONS_H_*/
+#endif /* BUTTONS_H_ */
