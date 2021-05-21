@@ -271,6 +271,7 @@ void SysTickIntHandler(void)
         }
         bool sw1State = getState(SWITCH1);
         if ((sw1State) && (curHeliMode == LANDED)) {
+            // Only launches if switch 1 has been off while program is running
             if (canLaunch) {
                 curHeliMode = LAUNCHING;
             }
