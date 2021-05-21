@@ -1,7 +1,7 @@
 /** @file   main.c
     @author Bailey Lissington, Dillon Pike, Joseph Ramirez
-    @date   22 April 2021
-    @brief  Accepts an analogue input and displays an altitude based on it.
+    @date   21 May 2021
+    @brief  Monitors and controls the altitude and yaw of a helirig.
 */
 
 // Macro function definition
@@ -42,112 +42,167 @@
 #define DEBUG_STR_LEN 30 // buffer size for uart debugging strings. Needs additional characters for newline, escape, zero
 #define BACKGROUND_LOOP_FREQ_HZ 10
 
+#define HOVER_DESIRED_ALT 10 // desired altitude when finding hover point
 #define DESIRED_YAW_STEP 15 // increment/decrement step of yaw in degrees
 #define DESIRED_ALT_STEP 10 // increment/decrement step of altitude in percentage
+#define LANDING_ALT_STEP 5 // decrement step of altitude when landing
+
+#define TAIL_DUTY_REF 45 // tail rotor duty cycle for finding reference point
+
+#define BUTTON_POLLING_RATE_HZ 100 // rate of button polling in Hz
 
 // RUNNING MODES. UNCOMMENT TO ENABLE
 #define DEBUG // Debug mode. Displays useful info via serial
 
-enum altDispMode {ALT_MODE_PERCENTAGE, ALT_MODE_RAW_ADC, ALT_MODE_OFF}; // Display mode enumerator
-enum heliMode {LANDED, LAUNCHING, FLYING, LANDING};
+enum heliMode {LANDED = 0, LAUNCHING, FLYING, LANDING};
+static const char* heliModeStr[] = {"LANDED", "LAUNCHING", "FLYING", "LANDING"};
 
 // function prototypes
 void initClock(void);
 void SysTickIntHandler(void);
 void ConfigureUART(void);
-void uartDebugPrint(char* debugStr);
+void initProgram(void);
+void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
+void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
 //main.c variable declarations
 static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
 static uint8_t desiredAltitude = 0;
 static int16_t desiredYaw = 0;
+static int16_t refYaw = 0;
 static volatile uint8_t dTCounter = 0;
+static bool canLaunch = false;
+static uint8_t sysTickButtonCounter = 0;
 
 /** Main function of the MCU.  */
 int main(void)
 {
-    // Initialization of peripherals
-    initClock();
-    initADC();
-    initButtons();
-    initCircBuf(&circBufADC, BUF_SIZE);
-    OLEDInitialise();
-    initGPIO();
-    initYawStates();
-    initPWMClock();
-    initialisePWM();
-    initialisePWMTail();
-    IntMasterEnable();
-    ConfigureUART();
-    initPacer(BACKGROUND_LOOP_FREQ_HZ);
+    initProgram();
 
     // local variable declarations
-    char dispStr[MAX_OLED_STR];
-#ifdef DEBUG
-    char debugStr[DEBUG_STR_LEN];
-#endif
-    uint32_t averageADC;
-    int16_t altitudePercentage;
+    uint32_t averageADC = 0;
+    int16_t altitudePercentage = 0;
+    int16_t yawDegrees = 0;
+    uint8_t tailDuty = 0;
+    uint8_t mainDuty = 0;
+    bool isHovering = false;
 
-    initialAlt = altRead(); //takes first reading as initial alt (constant)
-    uint8_t tailDuty;
-    uint8_t mainDuty;
-
-    int16_t refYaw;
+    initialAlt = altRead(); // Takes first reading as initial altitutde (constant)
 
     while (1)
     {
         averageADC = altRead();
         altitudePercentage = altitudeCalc(averageADC);
-        int16_t yawDegrees = getYawDegrees();
+        yawDegrees = getYawDegrees();
 
-
-        if (curHeliMode == LAUNCHING) {
-            desiredYaw++;
-            if (desiredYaw > 360) {
-                desiredYaw = 0;
+        if ((curHeliMode == LAUNCHING)) {
+            if ((!isHovering) && (altitudePercentage) > 0) {
+                isHovering = true;
+                tailDuty = TAIL_DUTY_REF;
+                enableRefYawInt();
+            }
+        } else if (curHeliMode == LANDING) {
+            if (yawDegrees == desiredYaw) {
+                desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - LANDING_ALT_STEP);
+                if (altitudePercentage == 0) {
+                    curHeliMode = LANDED;
+                    mainDuty = 0;
+                    tailDuty = 0;
+                    isHovering = false;
+                    resetErrorIntegrals();
+                }
             }
         }
+
+        // Sets current and desired yaw to 0 if flag set (heli at reference yaw)
+        // and sets heli to flying mode
         if (refYawFlag) {
+            yawDegrees = 0;
+            desiredYaw = 0;
             curHeliMode = FLYING;
-            refYaw = getRefYaw();
-            desiredYaw = refYaw;
+            refYawFlag = false;
         }
 
-        mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
-        tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+        if (curHeliMode != LANDED) {
+            if(curHeliMode != LAUNCHING) {
+                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            } else if (!isHovering) {
+                mainDuty = mainPidCompute(HOVER_DESIRED_ALT, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+                tailDuty = tailPidCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            } else {
+                mainDuty = mainPidCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
+            }
+        }
         dTCounter = 0; // Reset dTCounter
         setPWMDuty(mainDuty, MAIN);
         setPWMDuty(tailDuty, TAIL);
 
-#ifdef DEBUG
-        usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%3d]\n", altitudePercentage, desiredAltitude);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
-        UARTprintf(debugStr);
-        usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %1d\n", curHeliMode);
-        UARTprintf(debugStr);
-#endif
-        usnprintf(dispStr, MAX_OLED_STR, "ALTITUDE: %4d%%", altitudePercentage);
-        OLEDStringDraw(dispStr, 0, 0); //Position of altitude disp;
-        usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d", yawDegrees);
-        OLEDStringDraw(dispStr, 0, 1); //Position of yaw display
-        usnprintf(dispStr, DEBUG_STR_LEN, "Main: %2d", mainDuty);
-        OLEDStringDraw(dispStr, 0, 2); //Position of main duty display
-        usnprintf(dispStr, DEBUG_STR_LEN, "Tail: %2d", tailDuty);
-        OLEDStringDraw(dispStr, 0, 3); //Position of tail duty display
+        #ifdef DEBUG
+        displayInfoSerial(altitudePercentage, yawDegrees, tailDuty, mainDuty);
+        #endif
+        displayInfoOLED(altitudePercentage, yawDegrees, tailDuty, mainDuty);
 
         pacerWait();
     }
 }
 
+/* Initialises the peripherals, interrupts, serial output, circular buffer, and yaw channel states.  */
+void initProgram(void) {
+    initClock();
+    initADC();
+    initButtons();
+    initCircBuf(&circBufADC, BUF_SIZE);
+    OLEDInitialise();
+    initYawInt();
+    initYawStates();
+    initRefYawInt();
+    initPWMClock();
+    initialisePWM();
+    initialisePWMTail();
+    IntMasterEnable();
+    ConfigureUART();
+    SysTickEnable();
+    initPacer(BACKGROUND_LOOP_FREQ_HZ);
+}
+
+/* Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
+void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+    char dispStr[MAX_OLED_STR];
+
+    usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%4d]\n", altitudePercentage, desiredAltitude);
+    OLEDStringDraw(dispStr, 0, 0); // Display current altitude and desired altitude on line 0
+
+    usnprintf(dispStr, MAX_OLED_STR, "YAW: %4d [%4d]\n", yawDegrees, desiredYaw);
+    OLEDStringDraw(dispStr, 0, 1); // Display current yaw and desired yaw on line 1
+
+    usnprintf(dispStr, DEBUG_STR_LEN, "M: %2d T: %2d", mainDuty, tailDuty);
+    OLEDStringDraw(dispStr, 0, 2); // Display main and tail duty cycles on line 2
+
+    usnprintf(dispStr, MAX_OLED_STR, "MODE: %9s", heliModeStr[curHeliMode]);
+    OLEDStringDraw(dispStr, 0, 3); // Display heli mode on line 3
+}
+
+/* Prints altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
+void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+    char debugStr[DEBUG_STR_LEN];
+
+    usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%4d]\n", altitudePercentage, desiredAltitude);
+    UARTprintf(debugStr); // Display current altitude and desired altitude
+
+    usnprintf(debugStr, DEBUG_STR_LEN, "Yaw: %4d [%4d]\n", yawDegrees, desiredYaw);
+    UARTprintf(debugStr); // Display current yaw and desired yaw
+
+    usnprintf(debugStr, DEBUG_STR_LEN, "Main: %3d Tail: %3d\n", mainDuty, tailDuty);
+    UARTprintf(debugStr); // Display main and tail duty cycles
+
+    usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
+    UARTprintf(debugStr); // Display heli mode
+}
 
 
-
-/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples. */
+/* Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.  */
 void ConfigureUART(void)
 {
     // Enable the GPIO Peripheral used by the UART.
@@ -168,7 +223,7 @@ void ConfigureUART(void)
     UARTStdioConfig(0, 9600, 16000000);
 }
 
-/* Initialisation of the clock and systick. */
+/* Initialisation of the clock and systick.  */
 void initClock(void)
 {
     // Set the clock rate to 20 MHz
@@ -177,7 +232,6 @@ void initClock(void)
     SysTickPeriodSet(clockRate / SYSTICK_RATE_HZ);
     SysTickIntRegister(SysTickIntHandler);
     SysTickIntEnable();
-    SysTickEnable();
 }
 
 /** Sets the initial altitude to the current circular buffer mean if the left button has been pushed.
@@ -185,18 +239,42 @@ void initClock(void)
 void SysTickIntHandler(void)
 {
     ADCProcessorTrigger(ADC0_BASE, 0);
-    updateButtons();
-    if(checkButton(LEFT) == PUSHED)
-        desiredYaw -= DESIRED_YAW_STEP;
-    if(checkButton(RIGHT) == PUSHED)
-        desiredYaw += DESIRED_YAW_STEP;
-    if(checkButton(UP) == PUSHED)
-        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
-    if(checkButton(DOWN) == PUSHED)
-        desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
-    if (checkButton(SWITCH1) == PUSHED && curHeliMode == LANDED) {
-        curHeliMode = LAUNCHING;
-        enableRefYawInt();
+    if(sysTickButtonCounter >= (SYSTICK_RATE_HZ/BUTTON_POLLING_RATE_HZ)) {
+        sysTickButtonCounter = 0;
+        updateButtons();
+        if (checkButton(LEFT) == PUSHED)
+            desiredYaw -= DESIRED_YAW_STEP;
+            if (desiredYaw > (FULL_ROTATION_DEG / 2)) {
+                desiredYaw -= FULL_ROTATION_DEG;
+            }
+        if (checkButton(RIGHT) == PUSHED)
+            desiredYaw += DESIRED_YAW_STEP;
+        if (desiredYaw < (-(FULL_ROTATION_DEG / 2) - 1)) {
+            desiredYaw += FULL_ROTATION_DEG;
+        }
+        if (checkButton(UP) == PUSHED) {
+            desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude + DESIRED_ALT_STEP);
+        }
+        if (checkButton(DOWN) == PUSHED) {
+            desiredAltitude = CONSTRAIN_PERCENT(desiredAltitude - DESIRED_ALT_STEP);
+        }
+        bool sw1State = getState(SWITCH1);
+        if ((sw1State) && (curHeliMode == LANDED)) {
+            if (canLaunch) {
+                curHeliMode = LAUNCHING;
+            }
+
+        } else if (!sw1State) {
+            canLaunch = true;
+            if(curHeliMode == FLYING) {
+                curHeliMode = LANDING;
+                desiredYaw = refYaw;
+            }
+        }
+        if (getState(RESET)) {
+            SysCtlReset();
+        }
     }
+    sysTickButtonCounter++;
     dTCounter++;
 }

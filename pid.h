@@ -19,10 +19,15 @@
 #define PID_MAX 98
 #define PID_MIN 2
 
+#define FULL_ROTATION_DEG 360 // degrees of a full rotation
+
 void initMainPid(void);
 void initTailPid(void);
 
 double mainPidCompute(uint8_t setPoint, int16_t input, double deltaT);
 double tailPidCompute(double setPoint, double input, double deltaT);
+
+/* Sets main and tail error integrals to 0.  */
+void resetErrorIntegrals(void);
 
 #endif /* PID_H_ */

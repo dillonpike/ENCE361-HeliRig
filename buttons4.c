@@ -10,9 +10,12 @@
 // Note that pin PF0 (the pin for the RIGHT pushbutton - SW2 on
 //  the Tiva board) needs special treatment - See PhilsNotesOnTiva.rtf.
 //
-// P.J. Bones UCECE
-// Last modified:  7.2.2018
+// P.J. Bones UCECE 7.2.2018
 // 
+// Modified to get state of SW1 and SW2 (RESET) by
+// Bailey Lissington, Dillon Pike, and Joseph Ramirez.
+//
+// Last modified: 20 May 2021
 // *******************************************************
 
 #include <stdint.h>
@@ -85,11 +88,19 @@ initButtons (void)
 
 
 
-    //SW1 (active HIGH)
+    // SWITCH1 (active HIGH)
     SysCtlPeripheralEnable (SWITCH1_BUT_PERIPH);
     GPIOPinTypeGPIOInput (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN);
     GPIOPadConfigSet (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN, GPIO_STRENGTH_2MA,
                       GPIO_PIN_TYPE_STD_WPD);
+    but_normal[SWITCH1] = SWITCH1_BUT_NORMAL;
+
+    // RESET (SWITCH2) (active LOW)
+    SysCtlPeripheralEnable (RESET_BUT_PERIPH);
+    GPIOPinTypeGPIOInput (RESET_BUT_PORT_BASE, RESET_BUT_PIN);
+    GPIOPadConfigSet (RESET_BUT_PORT_BASE, RESET_BUT_PIN, GPIO_STRENGTH_2MA,
+       GPIO_PIN_TYPE_STD_WPD);
+    but_normal[RESET] = RESET_BUT_NORMAL;
 
 
 
@@ -121,7 +132,7 @@ updateButtons (void)
 	but_value[DOWN] = (GPIOPinRead (DOWN_BUT_PORT_BASE, DOWN_BUT_PIN) == DOWN_BUT_PIN);
     but_value[LEFT] = (GPIOPinRead (LEFT_BUT_PORT_BASE, LEFT_BUT_PIN) == LEFT_BUT_PIN);
     but_value[RIGHT] = (GPIOPinRead (RIGHT_BUT_PORT_BASE, RIGHT_BUT_PIN) == RIGHT_BUT_PIN);
-	but_value[SWITCH1] = (GPIOPinRead (SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN) == SWITCH1_BUT_PIN);
+
     // Iterate through the buttons, updating button variables as required
 	for (i = 0; i < NUM_BUTS; i++)
 	{
@@ -158,3 +169,18 @@ checkButton (uint8_t butName)
 	return NO_CHANGE;
 }
 
+// *******************************************************
+// Reads and returns the true if butName is high, otherwise false.
+// Accepts SWITCH1 and RESET as butName, otherwise returns false.
+// Added by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
+bool
+getState(uint8_t butName)
+{
+    if (butName == SWITCH1) {
+        return (GPIOPinRead(SWITCH1_BUT_PORT_BASE, SWITCH1_BUT_PIN) == SWITCH1_BUT_PIN);
+
+    } else if (butName == RESET) {
+        return (GPIOPinRead(RESET_BUT_PORT_BASE, RESET_BUT_PIN) == RESET_BUT_PIN);
+    }
+    return false;
+}

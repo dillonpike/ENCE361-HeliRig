@@ -20,7 +20,7 @@
 //*****************************************************************************
 // Constants
 //*****************************************************************************
-enum butNames {UP = 0, DOWN, LEFT, RIGHT, SWITCH1, NUM_BUTS};
+enum butNames {UP = 0, DOWN, LEFT, RIGHT, SWITCH1, RESET, NUM_BUTS};
 enum butStates {RELEASED = 0, PUSHED, NO_CHANGE};
 // UP button
 #define UP_BUT_PERIPH           SYSCTL_PERIPH_GPIOE
@@ -46,10 +46,17 @@ enum butStates {RELEASED = 0, PUSHED, NO_CHANGE};
 #define RIGHT_BUT_PIN           GPIO_PIN_0
 #define RIGHT_BUT_NORMAL  true
 
-// SW1 slider switch
+// SWITCH1 slider switch
 #define SWITCH1_BUT_PERIPH      SYSCTL_PERIPH_GPIOA
 #define SWITCH1_BUT_PORT_BASE   GPIO_PORTA_BASE
 #define SWITCH1_BUT_PIN         GPIO_PIN_7
+#define SWITCH1_BUT_NORMAL  false
+
+// RESET button
+#define RESET_BUT_PERIPH        SYSCTL_PERIPH_GPIOA
+#define RESET_BUT_PORT_BASE     GPIO_PORTA_BASE
+#define RESET_BUT_PIN           GPIO_PIN_6
+#define RESET_BUT_NORMAL  false
 
 #define NUM_BUT_POLLS 3
 // Debounce algorithm: A state machine is associated with each button.
@@ -78,5 +85,12 @@ updateButtons (void);
 // enumeration butStates, excluding 'NUM_BUTS'. Safe under interrupt.
 uint8_t
 checkButton (uint8_t butName);
+
+// *******************************************************
+// Reads and returns the true if butName is high, otherwise false.
+// Accepts SWITCH1 and RESET as butName, otherwise returns false.
+// Added by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
+bool
+getState(uint8_t butName);
 
 #endif /*BUTTONS_H_*/
