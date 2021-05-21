@@ -19,7 +19,7 @@ double mainPiCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
     control = error * MAIN_PI_KP + (mainErrorIntegral + deltaI) * MAIN_PI_KI;
 
     // Constrains control between PI_MIN and PI_MAX
-    if(control < PI_MIN) {
+    if (control < PI_MIN) {
         control = PI_MIN;
     } else if (control > PI_MAX) {
         control = PI_MAX;
