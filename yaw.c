@@ -4,13 +4,19 @@
     @brief  Functions related to yaw monitoring.
 */
 
-// library includes
+// standard library includes
 #include <stdint.h>
 #include <stdbool.h>
+
+// library includes
 #include "inc/hw_memmap.h"
 #include "driverlib/gpio.h"
 #include "driverlib/sysctl.h"
 #include "yaw.h"
+
+#define DISC_SLOTS 112 // number of slots on the encoder disc
+#define EDGES_PER_SLOT 4 // total number of rising and falling edges per slot
+#define DEGREES_PER_REV 360 // number of degrees in a full revolution
 
 // global yaw counter variable that tracks how many disc slots the reader is away from the origin
 static volatile int16_t yawCounter = 0;
@@ -90,13 +96,14 @@ void refYawIntHandler(void)
     GPIOIntDisable(GPIO_PORTC_BASE, GPIO_INT_PIN_4);
 }
 
-/** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
+/** Constrains yawCounter between the negative and positive values of the counter at half a rotation.
+    When decreasing below the limit, it changes to the maximum value, and vice versa.  */
 void yawConstrain(void)
 {
-    if (yawCounter > DISC_SLOTS * 2) {
-        yawCounter -= DISC_SLOTS * 4;
-    } else if (yawCounter <= -2 * DISC_SLOTS) {
-        yawCounter += DISC_SLOTS * 4;
+    if (yawCounter > DISC_SLOTS * EDGES_PER_SLOT / 2) {
+        yawCounter -= DISC_SLOTS * EDGES_PER_SLOT;
+    } else if (yawCounter <= -EDGES_PER_SLOT / 2 * DISC_SLOTS) {
+        yawCounter += DISC_SLOTS * EDGES_PER_SLOT;
     }
 }
 
@@ -104,7 +111,7 @@ void yawConstrain(void)
     @return yawCounter converted to degrees.  */
 int16_t getYawDegrees(void)
 {
-    return yawCounter * DEGREES_PER_REV / (4 * DISC_SLOTS);
+    return yawCounter * DEGREES_PER_REV / (EDGES_PER_SLOT * DISC_SLOTS);
 }
 
 /** Enables PC4 interrupts to be handled and clears any interrupts generated while disabled.  */

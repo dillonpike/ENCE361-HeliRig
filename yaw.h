@@ -7,9 +7,6 @@
 #ifndef YAW_H
 #define YAW_H
 
-#define DISC_SLOTS 112 // number of slots on the encoder disc
-#define DEGREES_PER_REV 360 // number of degrees in a full revolution
-
 extern volatile bool refYawFlag; // flag for refYawIntHandler to set so it can be handled in main loop
 
 /** Enables GPIO port B and initialises YawIntHandler to run when the values on pins 0 or 1 change.  */
@@ -30,7 +27,8 @@ void YawIntHandler(void);
     sets a flag for the main loop, then disables the interrupt.  */
 void refYawIntHandler(void);
 
-/** Constrains yawCounter between -2 * DISC_SLOTS and 2 * DISC_SLOTS.  */
+/** Constrains yawCounter between the negative and positive values of the counter at half a rotation.
+    When decreasing below the limit, it changes to the maximum value, and vice versa.  */
 void yawConstrain(void);
 
 /** Converts yawCounter to degrees and returns it.

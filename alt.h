@@ -4,7 +4,6 @@
     @brief  Functions related to altitude monitoring.
 */
 
-
 #ifndef ALT_H
 #define ALT_H
 

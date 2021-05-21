@@ -169,7 +169,7 @@ checkButton (uint8_t butName)
 }
 
 // *******************************************************
-// Reads and returns the true if butName is high, otherwise false.
+// Reads the pin of butName and returns true if high, otherwise false.
 // Accepts SWITCH1 and RESET as butName, otherwise returns false.
 // Added by Bailey Lissington, Dillon Pike, and Joseph Ramirez.
 bool

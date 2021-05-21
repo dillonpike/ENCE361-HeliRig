@@ -18,7 +18,7 @@
 //#define TESTING // Enables built-in potentiometer to be used instead of the rig's output
 
 static volatile bool initialAltRead = false; // Has the initial altitude been read?
-static volatile uint8_t sampleCount = 0; //Counter comparing to BUF_SIZE; interrupt to get the mean initial read
+static volatile uint8_t sampleCount = 0; // Counter comparing to BUF_SIZE; interrupt to get the mean initial read
 
 /** Calculates the raw ADC mean of the circular buffer and returns it.
     @return average raw ADC.  */

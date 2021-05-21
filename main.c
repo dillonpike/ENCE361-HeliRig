@@ -66,13 +66,13 @@ void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tai
 void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty);
 
 //main.c variable declarations
-static uint8_t curHeliMode = LANDED;
 static uint32_t clockRate;
-static uint8_t desiredAltitude = 0;
-static int16_t desiredYaw = 0;
+static volatile uint8_t curHeliMode = LANDED;
+static volatile uint8_t desiredAltitude = 0;
+static volatile int16_t desiredYaw = 0;
 static volatile uint8_t dTCounter = 0;
-static bool canLaunch = false;
-static uint8_t sysTickButtonCounter = 0;
+static volatile bool canLaunch = false;
+static volatile uint8_t sysTickButtonCounter = 0;
 
 /** Main function of the MCU.  */
 int main(void)
@@ -135,7 +135,7 @@ int main(void)
                 mainDuty = mainPiCompute(HOVER_DESIRED_ALT, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
                 tailDuty = tailPiCompute(desiredYaw, yawDegrees, ((double)dTCounter)/SYSTICK_RATE_HZ);
             } else {
-                // Adjusts main duty to keep altitude at desired point while searching for reference yaw
+                // Controls main duty to keep altitude at desired point while searching for reference yaw
                 mainDuty = mainPiCompute(desiredAltitude, altitudePercentage, ((double)dTCounter)/SYSTICK_RATE_HZ);
             }
         }
@@ -153,7 +153,8 @@ int main(void)
 }
 
 /** Initialises the peripherals, interrupts, serial output, circular buffer, and yaw channel states.  */
-void initProgram(void) {
+void initProgram(void)
+{
     initClock();
     initADC();
     initButtons();
@@ -172,7 +173,8 @@ void initProgram(void) {
 }
 
 /** Displays altitude, yaw, main and tail duty cycles, and the mode of the helicopter to the Orbit OLED.  */
-void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty)
+{
     char dispStr[MAX_OLED_STR];
 
     usnprintf(dispStr, MAX_OLED_STR, "ALT: %4d [%4d]\n", altitudePercentage, desiredAltitude);
@@ -189,7 +191,8 @@ void displayInfoOLED(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tai
 }
 
 /** Prints altitude, yaw, main and tail duty cycles, and the mode of the helicopter to serial.  */
-void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty) {
+void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t tailDuty, uint8_t mainDuty)
+{
     char debugStr[DEBUG_STR_LEN];
 
     usnprintf(debugStr, DEBUG_STR_LEN, "Alt: %4d [%4d]\n", altitudePercentage, desiredAltitude);
@@ -204,7 +207,6 @@ void displayInfoSerial(int16_t altitudePercentage, int16_t yawDegrees, uint8_t t
     usnprintf(debugStr, DEBUG_STR_LEN, "Mode: %s\n", heliModeStr[curHeliMode]);
     UARTprintf(debugStr); // Display heli mode
 }
-
 
 /** Configures the UART0 for USB Serial Communication. Referenced from TivaWare Examples.  */
 void ConfigureUART(void)

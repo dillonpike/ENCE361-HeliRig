@@ -4,8 +4,10 @@
     @brief  Functions related to implementing a pacer loop.
 */
 
+// standard library includes
 #include <stdbool.h>
 
+// library includes
 #include "pacer.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
@@ -16,7 +18,8 @@
 static uint32_t pacerPeriod; // desired pacer period in timer increments
 
 /** Initialises the pacerPeriod and initialises TIMER0.  */
-void initPacer(uint16_t freq) {
+void initPacer(uint16_t freq)
+{
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     pacerPeriod = SysCtlClockGet() / freq;
 
@@ -27,7 +30,8 @@ void initPacer(uint16_t freq) {
 }
 
 /** Waits until a time equal to pacerPeriod has elapsed since the last timer reset, then resets the timer.  */
-void pacerWait(void) {
+void pacerWait(void)
+{
     while (TimerValueGet(TIMER0_BASE, TIMER_A) < pacerPeriod);
 
     HWREG(TIMER0_BASE + TIMER_O_TBV) = 0;

@@ -14,7 +14,7 @@ double mainPiCompute(uint8_t setAltitude, int16_t inputAltitude, double deltaT)
 {
     double control;
     double error = setAltitude - inputAltitude;
-    double deltaI = error * deltaT;
+    double deltaI = error * deltaT; // change in integral since last computation
 
     control = error * MAIN_PI_KP + (mainErrorIntegral + deltaI) * MAIN_PI_KI;
 
@@ -37,8 +37,8 @@ double tailPiCompute(double setPoint, double input, double deltaT)
     double error = setPoint - input;
 
     // Calibrates error to the shortest signed difference between input and setPoint
-    // since input and setPoint are constrained between -179 and 180
-    // and transitions from -179 to 180 when decreasing, and vice versa
+    // since input and setPoint are constrained between half a rotation and negative half
+    // a rotation minus one and transitions from the min to the max when decreasing, and vice versa
     if (error < -(FULL_ROTATION_DEG / 2)) {
         error += FULL_ROTATION_DEG;
     } else if (error > (FULL_ROTATION_DEG / 2)) {
